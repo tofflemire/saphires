@@ -6,7 +6,7 @@ that don't typically have esaily accessible python verions.
 
 It currently includes nothing, but will soon include the following tools:
 
-- Fouier Cross Correlation
+- Fourier Cross Correlation
 
 - TODCOR (Two-Dimensional Cross Correlation)
 
