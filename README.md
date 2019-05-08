@@ -1,5 +1,5 @@
-# PHIRES
-PHIRES - Python tools for HIgh REsolution Spectroscopy
+# SAPHIRES
+SAPHIRES - Stellar Analysis in Python for HIgh REsolution Spectroscopy
 
 This python package includes some common tools for the ananlysis of high resolution spectroscopy 
 that don't typically have esaily accessible python verions.
