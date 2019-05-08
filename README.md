@@ -1,5 +1,5 @@
-# toasts
-TOASTS - TOols for the Analysis of STellar Spectra
+# PHIRES
+PHIRES - Python tools for HIgh REsolution Spectroscopy
 
 This python package includes some common tools for the ananlysis of high resolution spectroscopy 
 that don't typically have esaily accessible python verions.
