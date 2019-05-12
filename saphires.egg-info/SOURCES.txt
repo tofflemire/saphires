@@ -2,8 +2,8 @@ README.md
 setup.py
 saphires/__init__.py
 saphires/io.py
-saphires/simple.py
 saphires/utils.py
+saphires/xc.py
 saphires.egg-info/PKG-INFO
 saphires.egg-info/SOURCES.txt
 saphires.egg-info/dependency_links.txt
