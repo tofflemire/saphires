@@ -18,7 +18,6 @@ Module Description:
 A collection of functions that read in and out put spectra in the 
 SAPHIRES data format.
 '''
-
 # ---- Standard Library
 import sys
 # ----
@@ -90,11 +89,11 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 	   dictionary with the following form:
 	   ['nflux'] 		- native flux array (inverted)
 	   ['nwave'] 		- native wavelength array
-	   ['ndw'] 			- native wavelength spacing va
+	   ['ndw'] 			- native wavelength spacing
 	   ['wav_cent'] 	- order central wavelength
 	   ['w_region'] 	- wavelength region
-	   ['rv_shift'] 	- initial rv shift (used if yo
-	   ['order_flag'] 	- order flag					
+	   ['rv_shift'] 	- initial rv shift
+	   ['order_flag'] 	- order flag				
 	
 	Additional keywords and data are added to the nested dictionaries by 
 	other SAPHIRES functions, e.g.:
@@ -165,64 +164,67 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 
 	in_type = spectra_list.split('.')[-1]
 
-	if in_type in ['p','pkl']:
+	direct = ['p','pkl']
+	ord_list = ['ls','txt','dat']
+
+	if in_type in direct:
 		t_f_names = np.array([spectra_list])
 		order = np.array([0])
 		w_range = np.array(['*'])
-	else:
+
+	if in_type in ord_list:
 		t_f_names,order,w_range = np.loadtxt(spectra_list,unpack=True,
 		                                     dtype=nplts+'10000,i,'+nplts+'10000')
-
 		if (t_f_names.size == 1): 
 			t_f_names=np.array([t_f_names])
 			order=np.array([order])
 			w_range=np.array([w_range])
 
-	#if w_file == None:
-	#	if (spectra_list[-2:] == 'ls') | (spectra_list[-2:] == 'xt'):
-	#		t_f_names=np.loadtxt(spectra_list,unpack=True,dtype=nplts+'10000')
-	#	if (spectra_list[-2:] == '.p'):
-	#		t_f_names = np.array(spectra_list,dtype=str)
-	#
-	#	if (t_f_names.size == 1): 
-	#		t_f_names=np.array([t_f_names])
-	#
-	#if w_file != None:
-	#	t_f_names,order,w_range = np.loadtxt(w_file,unpack=True,dtype=nplts+'10000,i,'+nplts+'10000')
-	#
-	#	if (t_f_names.size == 1): 
-	#		t_f_names=np.array([t_f_names])
-	#		order=np.array([order])
-	#		w_range=np.array([w_range])
+	if ((in_type not in direct) & (in_type not in ord_list)):
+		print('Input file in wrong format.')
+		print("If a single pickle dictionary file, must end in '.p' or '.pkl'.")
+		print("If a input text file, must end in '.ls', '.dat', or '.txt'.")
+		return 0,0
 
 	#Dictionary for output spectra
 	t_spectra={}
 
-	t_f_names_out=np.empty(0,dtype='U100')
+	t_f_names_out=np.empty(0,dtype=nplts+'100')
 
 	for i in range(np.unique(t_f_names).size):
+		#-------------- READ IN -------------------------
 		if py_version == 2:
 			pic_dic = pkl.load(open(t_f_names[i],'rb'))
 		if py_version == 3:
 			pic_dic = pkl.load(open(t_f_names[i],'rb'),encoding='latin')
 
-		if (pic_dic['wav'].ndim == 1) & (w_file == None):
+		keys = list(pic_dic.keys())
+
+		if 'wav' not in keys:
+			print("The wavelength array dictionary keyword must be 'wav'.")
+			return 0,0
+		if 'flux' not in keys:
+			print("The flux array dictionary keyword must be 'flux'.")
+			return 0,0
+
+		if (pic_dic['wav'].ndim == 1) & (in_type in direct):
 			n_orders = 1
 
-		if (pic_dic['wav'].ndim == 1) & (w_file != None):
+		if (pic_dic['wav'].ndim == 1) & (in_type in ord_list):
 			n_orders = order.size
 
-		if (pic_dic['wav'].ndim > 1) & (w_file == None):
+		if (pic_dic['wav'].ndim > 1) & (in_type in direct):
 			n_orders=pic_dic['wav'].shape[0]
 
-		if (pic_dic['wav'].ndim > 1) & (w_file != None):
+		if (pic_dic['wav'].ndim > 1) & (in_type in ord_list):
 			n_orders = order.size
 
 		for j in range(n_orders):
-			if w_file != None:
+			if in_type in ord_list:
 				j_ind=order[j]
-			else:
+			if in_type in direct:
 				j_ind = j
+
 			if pic_dic['wav'].ndim == 1:
 				t_flux = pic_dic['flux']
 				t_w = pic_dic['wav']
@@ -230,19 +232,22 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 				t_flux = pic_dic['flux'][j_ind]
 				t_w = pic_dic['wav'][j_ind]
 
+			if in_type in direct:
+				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+			if in_type in ord_list:
+				if w_range[j] == '*':
+					w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+				else:
+					w_range_out = w_range[j]
+
+		#------------------------------------------------------
+
 			t_w = t_w*w_mult
 
-			if w_file == None:
-				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
-			if w_file != None:
-				w_range_out = w_range[j]
-
 			t_w, t_flux = utils.spec_trim(t_w,t_flux,w_range_out,'*',trim_style=trim_style)
-			#t_flux = t_flux[trim_mask]
 		
-			t_flux = t_flux / np.median(t_flux)
-
 			if norm == True:
+				t_flux = t_flux / np.median(t_flux)
 				t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
 
 			t_flux = 1.0 - t_flux
@@ -260,20 +265,9 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 										  'nwave': t_w,
 										  'ndw': t_dw,
 										  'wav_cent': np.mean(t_w),
-										  'vflux': 0,
-										  'vwave': 0,
-										  'vflux_temp': 0,
-										  'vel': 0,
 										  'w_region': w_range_out,
-										  'temp_name': 0,
-										  'w_region_temp': 0,
-										  'bf': 0,
-										  'sbf': 0,
-										  'bf_fit_params':0,
-										  'rv_shift': 0,
-										  'order_flag': 1,
-										  'w_region_iter': '*',
-										  'ccf_fit_params': 0}
+										  'rv_shift': 0.0,
+										  'order_flag': 1}
 
 	if combine_all == True:
 		w_all = np.empty(0)
@@ -299,20 +293,9 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 							   'nwave': w_all,
 							   'ndw': t_dw,
 							   'wav_cent': np.mean(w_all),
-							   'vflux': 0,
-							   'vwave': 0,
-							   'vflux_temp': 0,
-							   'vel': 0,
 							   'w_region': w_range_all,
-							   'temp_name': 0,
-							   'w_region_temp': 0,
-							   'bf': 0,
-							   'sbf': 0,
-							   'bf_fit_params':0,
-							   'rv_shift': 0,
-							   'order_flag': 0,
-							   'w_region_iter': '*',
-							   'ccf_fit_params': 0}
+							   'rv_shift': 0.0,
+							   'order_flag': 1}
 
 		t_f_names_out=np.append(t_f_names_out,'Combined')
 
