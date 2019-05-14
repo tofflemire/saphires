@@ -65,17 +65,18 @@ if py_version == 2:
 
 
 def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
-               trim_style='clip',norm_w_width=200.0):
+               trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
 	'''
 	A function to read in a target spectrum, or list of target spectra, from 
 	a pickle dictionary with specific keywords, and put them into the 
 	SAPHIRES data structure.
 	
 	Required Keywords:
-	'wav'  - Contains a single or multidimensional (i.e. multiple orders) 
-			 wavelenth array. The wavelength array is assumed to be in 
-			 angstroms.
-	'flux' - Contains flux values corresponding to the wavelength array(s).
+	- Wavelength array keyword is specified by the dk_wav paramter. It must
+	  contain a single or multidimensional (i.e. multiple orders) array. 
+	  The wavelength array is assumed to be in angstroms.
+	- Flux array keyword is specified by the dk_flux parameter. It must 
+	  contain flux values corresponding to the wavelength array(s).
 	Both must have the same dimenisionality and length
 	
 	The "data structure" is nothing special, just a set of nested dictionaries,
@@ -115,22 +116,42 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 
 	Parameters
     ----------
-	spectra_list : 
-
-		"spectra_list" is a test file with one name of a pickle file per line
-		in the first column. In the second column you can define a range over
-		which to compute the broadening function. The convention is, 
-		"w1-w2,w3-w4", and you can have as many as you like.
-		If you want to use the entire wavelenth range, put a "*" in the second 
-		column.
-
-	w_file : bool
-		None
+	spectra_list : str
+		The file to be read in. Can be the name of a single pickle file, or
+		a list of spectra/spectral regions.
+		- Single file -- must end in a '.p' or '.pkl' and have the format
+		  described above.
+		- List of spectra -- text file that must end in '.ls', '.dat', '.txt'.
+		  The input file must have the following format:
+		  filename order wavelength_range
+		  Some examples:
+		  spec.p 0 * 
+		  - (reads in the entire wavelenth range as one order)
+		  spec.p 0 5200-5300,5350-5400
+		  spec.p 0 5400-5600
+		  - (splits the single wavelength array in to two "orders" that are 
+		  	 each 200 A wide. The first has a 50 A gap.)
+		  Notes on wavelength_range: 
+		  	Must have the general form "w1-w2,w3-w4" where '-' symbols 
+		  	includes the wavelength region, ',' symbols excludes them. There 
+		  	can be as many regions as you want, as long as it ends with an
+		  	inclusive region (i.e. cannot end with a comma or dash). 
+		  	Wavelength values must ascend left to right. 
+		I would highly recommend using the specified wavelength regions. 
+		There will inevitably be a part of the spectrum (edge effect, CR,
+		intrinsic emission line) that you don't want to include in your
+		calculation. And, if you remove overlapping regions, you can set the
+		'combine_all' parameter to True to create a stiched order, which can 
+		be useful.
 
 	combine_all : bool
 		Option to stitch together all spectral orders. This is useful generally,
 		but especially for low-S/N spectra where any given order could give you 
 		BF or CCF results that are trash. The default value is 'True'.
+		IMPORTANT NOTE: Spectra are currently stitched in the simplist way 
+		possible. Use the defined spectral windows capabilties of the 
+		'spectra_list' parameter to avoid overlapping regions from order to 
+		order. 
 
 	norm : bool
 		Option to continuum normalize the input spectrum. Default is True.
@@ -153,6 +174,12 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 		- If 'spl', unused regions will be interpolated over with a cubic 
 		  spline. You probably don't want to use this one.
 
+	dk_wav : str
+		Dictionary keyword for the wavelength array. Default is 'wav'
+
+	dk_flux : str
+		Dictionary keyword for the flux array. Default is 'flux'
+		
     Returns
     -------
 	tar : array-like
@@ -200,23 +227,25 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 
 		keys = list(pic_dic.keys())
 
-		if 'wav' not in keys:
-			print("The wavelength array dictionary keyword must be 'wav'.")
+		if dk_wav not in keys:
+			print("The wavelength array dictionary keyword specified, '"+dk_wav+"'")
+			print("was not found.")
 			return 0,0
-		if 'flux' not in keys:
-			print("The flux array dictionary keyword must be 'flux'.")
+		if dk_flux not in keys:
+			print("The flux array dictionary keyword specified, '"+dk_flux+"'")
+			print("was not found.")
 			return 0,0
 
-		if (pic_dic['wav'].ndim == 1) & (in_type in direct):
+		if (pic_dic[dk_wav].ndim == 1) & (in_type in direct):
 			n_orders = 1
 
-		if (pic_dic['wav'].ndim == 1) & (in_type in ord_list):
+		if (pic_dic[dk_wav].ndim == 1) & (in_type in ord_list):
 			n_orders = order.size
 
-		if (pic_dic['wav'].ndim > 1) & (in_type in direct):
-			n_orders=pic_dic['wav'].shape[0]
+		if (pic_dic[dk_wav].ndim > 1) & (in_type in direct):
+			n_orders=pic_dic[dk_wav].shape[0]
 
-		if (pic_dic['wav'].ndim > 1) & (in_type in ord_list):
+		if (pic_dic[dk_wav].ndim > 1) & (in_type in ord_list):
 			n_orders = order.size
 
 		for j in range(n_orders):
@@ -225,12 +254,12 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 			if in_type in direct:
 				j_ind = j
 
-			if pic_dic['wav'].ndim == 1:
-				t_flux = pic_dic['flux']
-				t_w = pic_dic['wav']
+			if pic_dic[dk_wav].ndim == 1:
+				t_flux = pic_dic[dk_flux]
+				t_w = pic_dic[dk_wav]
 			else:
-				t_flux = pic_dic['flux'][j_ind]
-				t_w = pic_dic['wav'][j_ind]
+				t_flux = pic_dic[dk_flux][j_ind]
+				t_w = pic_dic[dk_wav][j_ind]
 
 			if in_type in direct:
 				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
