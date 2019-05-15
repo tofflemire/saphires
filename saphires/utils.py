@@ -20,6 +20,7 @@ A collection of utility functions used in the SAPHIRES package.
 
 # ---- Standard Library
 import sys
+import copy as copy
 # ----
 
 # ---- Third Party
@@ -224,8 +225,268 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 	return w_tar,f
 
 
+def bf_prepare(t_f_names,t_spectra,temp_name,temp_spec,m,oversample=1,
+               quiet=False,trap_apod=0,cr_trim=-0.5,trim_style='clip'):
+	'''
+	A function to prepare a target spectral dictionary (this can be a 
+	dictionary for a single spectrum or multiple spectra) with a template 
+	spectral dictionary (this must be a single spectrum) in order to 
+	compute the broadedning function.
+	
+	oversample - 
+	A key parameter of this function is "oversample". It sets the logarithmic 
+	spacing of the wavelength resampling and the corresponding velocity 
+	'resolution' of the broadening function. Generally, a higher oversampling
+	will produce better results, but it very quickly becomes expensive for two
+	reasons. One, your arrays become longer, and two, you have to increase the m
+	value (a proxy for the velocity regime probed) to cover the same velocity range. 
+
+	A low oversample value is problematic because if the intrinsitic width of your
+	tempate and target lines are the same, the broadening function should be a delta
+	function. The height/width of this function will depened on the location of 
+	velocity grid points in the BF in an undersampled case. This makes measurements 
+	of the RV and especially flux ratios problematic. 
+
+	If you have a very narrow lined template and a broad target spectrum, an 
+	oversample = 3 should be adequeate. In practice though, you may want something 
+	around 5. If you're unsure what value to use, look at the BF with low smoothing
+	(i.e. high R). If the curves are jagged and look undersampled, increase the 
+	oversample parameter.
+
+	The target spectral dictionary must have this format of sub-arrays
+	assocated with each keyword:
+	
+	[0] - native flux array (inverted)
+	[1] - native wavelength array
+	[2] - native wavelength spacing value
+	[3] - Order Central Wavelength
+	[4] - 0 (single ints; this function will this with an array)
+	[5] - 0 (single ints; this function will this with an array)
+	[6] - 0 (single ints; this function will this with an array)
+	[7] - 0 (single ints; this function will this with an array)
+	[8] - wavelength region
+	[9] - 0 (single int; this function will input the template name)
+	[10]- template wavelength region
+	[11]- 0 (single int; this function will this with an array)
+
+	The template spectral dictionary must have this format of sub-arrays
+	associated with its single keyword:
+	
+	[0] - native flux array (inverted)
+	[1] - native wavelength array
+	[2] - native wavelength spacing value
+	[3] - iOrder Central Wavelength
+	[4] - wavelength region
+	
+	The output will be an updated version of the input target spectral 
+	dictionary. It will have the following format:
+
+	[0] - native flux array (inverted)
+    [1] - native wavelength array
+    [2] - native wavelength spacing value
+    [3] - Order Central Wavelength
+    [4] - resampled flux array (inverted)
+    [5] - resampled wavelength array
+    [6] - resampled template flux array (inverted)
+    [7] - velocity array - to be plot against the BF
+    [8] - wavelength region
+    [9] - template name
+    [10]- template wavelength region
+    [11]- broadening funciton
+
+	Parameters
+	----------
+	t_f_names: array-like
+
+	t_spectra : python dictionary
+
+	temp_name : array-like
+	
+	temp_spec : python dictionary
 
 
+	m : int
+
+	oversample : float
+		Default is 1.
+
+    quiet : bool
+    	False
+
+    trap_apod : float
+    	Detault is 0, i.e. no apodization.
+
+    cr_trim	:
+    	-0.5
+
+    trim_style : 
+
+
+	Returns
+	-------
+
+	'''
+	#########################################
+	#This part "prepares" the spectra
+
+	spectra = copy.deepcopy(t_spectra)
+
+	for i in range(t_f_names.size):
+		#print t_f_names[i]
+		
+		spectra[t_f_names[i]][9] = temp_name
+		
+		w_range = spectra[t_f_names[i]][8]
+		w_range_iter = spectra[t_f_names[i]][16]
+
+		w_tar = spectra[t_f_names[i]][1]
+		flux_tar = spectra[t_f_names[i]][0]
+		
+		temp_trim = temp_spec[temp_name][4]
+		w_temp = temp_spec[temp_name][1]
+		flux_temp = temp_spec[temp_name][0]
+		
+		#This gets rid of large emission lines and CRs by interpolating over them.
+		if np.min(flux_tar) < cr_trim:
+			f_tar = interpolate.interp1d(w_tar[flux_tar > cr_trim],flux_tar[flux_tar > cr_trim])
+			w_tar = w_tar[(w_tar >= np.min(w_tar[flux_tar > cr_trim]))&(w_tar <= np.max(w_tar[flux_tar > cr_trim]))]
+			flux_tar = f_tar(w_tar)
+
+		if np.min(flux_temp) < cr_trim:
+			f_temp = interpolate.interp1d(w_temp[flux_temp > cr_trim],flux_temp[flux_temp > cr_trim])
+			w_temp = w_temp[(w_temp >= np.min(w_temp[flux_temp > cr_trim]))&(w_temp <= np.max(w_temp[flux_temp > cr_trim]))]
+			flux_temp = f_temp(w_temp)
+
+		w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
+		w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range_iter,'*',trim_style=trim_style)
+
+		if w_tar.size == 0:
+			if quiet==False:
+				print t_f_names[i],w_range
+				print "No overlap between target and template."
+				print ' '
+			spectra[t_f_names[i]][5] = 0.0
+			spectra[t_f_names[i]][15] = 0
+			continue
+
+		f_tar = interpolate.interp1d(w_tar,flux_tar)
+		f_temp = interpolate.interp1d(w_temp,flux_temp)
+
+		min_w = np.max([np.min(w_tar),np.min(w_temp)])
+
+		max_w = np.min([np.max(w_tar),np.max(w_temp)])
+
+		#Using the wavelength spacing for the template which is more
+		#technically motivated
+		min_dw=np.min([temp_spec[temp_name][2],spectra[t_f_names[i]][2]])
+
+		#inverse of the spectral resolution
+		r = min_dw/max_w/oversample #Over sampled by roughly a factor of 3 (assuming the resolution element is 3 pixels)
+
+		#velocity spacing in km/s
+		stepV=r*2.997924*10**5
+
+		#velocity array
+		vel=stepV*(np.arange(m)-m/2)
+		
+		#the largest array length between target and spectrum
+		#conditional below makes sure it is even
+
+		max_size = np.int(np.log(max_w/(min_w+1))/np.log(1+r))
+		if (max_size/2.0 % 1) != 0:
+			max_size=max_size-1
+
+		#log wavelength spacing, linear velocity spacing
+		w1t=(min_w+1)*(1+r)**np.arange(max_size)
+		
+		w1t_temp = copy.deepcopy(w1t)
+
+		t_rflux = f_tar(w1t)
+		temp_rflux = f_temp(w1t)
+
+		w1t,t_rflux = bf_spec_trim(w1t,t_rflux,w_range,temp_trim,trim_style=trim_style)
+		w1t,t_rflux = bf_spec_trim(w1t,t_rflux,w_range_iter,temp_trim,trim_style=trim_style)
+
+		w1t_temp,temp_rflux = bf_spec_trim(w1t_temp,temp_rflux,w_range,temp_trim,trim_style=trim_style)
+		w1t_temp,temp_rflux = bf_spec_trim(w1t_temp,temp_rflux,w_range_iter,temp_trim,trim_style=trim_style)
+
+		if (w1t.size/2.0 % 1) != 0:
+			w1t=w1t[0:-1]
+			t_rflux = t_rflux[0:-1]
+			temp_rflux = temp_rflux[0:-1]
+
+
+		##resampled fluxes and flux normalization if need be
+		#if tar_norm == False:
+		#	t_rflux = f_tar(w1t)
+		#
+		#if tar_norm == True:
+		#	flux = 1.0-spectra[t_f_names[i]][0]
+		#	x = np.arange(flux.size,dtype=float)
+		#	spl = bspl.iterfit(x, flux, maxiter = 15, 
+		#	                   lower = 0.3, upper = 2.0, bkspace = 40000, 
+		#	                   nord = 3)[0]
+		#	cont = spl.value(x)[0]
+		#
+		#	t_nflux = 1.0-(flux/cont)
+		#
+		#	f_t = interpolate.interp1d(spectra[t_f_names[i]][1],
+		#	                           t_nflux)
+		#
+		#	t_rflux = f_t(w1t)
+		#
+		#if temp_norm == False:
+		#	temp_rflux = f_temp(w1t)
+		#
+		#if temp_norm == True:
+		#	flux = 1.0 - f_temp(w1t)
+		#
+		#	x = np.arange(flux.size,dtype=float)
+		#	spl = bspl.iterfit(x, flux, maxiter = 15, 
+		#	                   lower = 0.3, upper = 2.0, bkspace = 40000, 
+		#	                   nord = 3 )[0]
+		#	cont = spl.value(x)[0]
+		#
+		#	temp_rflux = 1.0-(flux/cont)
+
+		#if (w1t.size/2.0 % 1) != 0:
+		#	w1t=w1t[0:-1]
+
+		#if (temp_rflux.size/2.0 % 1) != 0:
+		#	temp_rflux=temp_rflux[0:-1]
+
+		#if (t_rflux.size/2.0 % 1) != 0:
+		#	t_rflux=t_rflux[0:-1]
+
+		if trap_apod > 0:
+			trap_apod_fun = np.ones(w1t.size)
+			slope = 1.0/np.int(w1t.size*trap_apod)
+			y_int = slope*w1t.size
+			trap_apod_fun[:np.int(w1t.size*trap_apod)] = slope*np.arange(np.int(w1t.size*trap_apod),dtype=float)
+			trap_apod_fun[-np.int(w1t.size*trap_apod)-1:] = -slope*(np.arange(np.int(w1t.size*trap_apod+1),dtype=float)+(w1t.size*(1-trap_apod))) + y_int
+
+			temp_rflux = temp_rflux * trap_apod_fun
+			t_rflux = t_rflux * trap_apod_fun
+
+		if w1t.size < m:
+			if quiet == False:
+				print t_f_names[i],t_spectra[t_f_names[i]][8]
+				print "The target mask region is smaller for the m value."
+				print w1t.size,'versus',m
+				print "You can either reduce m or remove this order from the input or don't worry about it."
+				print ' '
+			spectra[t_f_names[i]][5] = 0.0	
+			spectra[t_f_names[i]][15] = 0
+			continue
+
+		spectra[t_f_names[i]][4] = t_rflux
+		spectra[t_f_names[i]][5] = w1t
+		spectra[t_f_names[i]][6] = temp_rflux
+		spectra[t_f_names[i]][7] = vel
+		spectra[t_f_names[i]][9] = temp_name
+		spectra[t_f_names[i]][10] = temp_spec[temp_name][4]
+
+	return spectra
 
 
 

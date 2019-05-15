@@ -25,6 +25,7 @@ import sys
 # ---- Third Party
 import pickle as pkl
 import numpy as np
+import astropy.io.fits as pyfits
 # ---- 
 
 # ---- Project
@@ -331,12 +332,17 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 	return t_f_names_out,t_spectra
 
 
-def bf_read_target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
-                        norm_w_width=200.0,trim_style='clip'):
+def target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
+                norm_w_width=200.0,trim_style='clip'):
 	'''
 	A function to read in a target spectrum, or list of target spectra, from 
 	an IRAF friendly fits file with a single order, and put them into the 
 	SAPHIRES data structure.
+
+	IRAF friendly in this context means that the fits file contrains a flux 
+	array and the headers have keywords CRVAL1, CDELT1, and potentially, LTV1,
+	that define the wavelength array. If you don't have these keywords, it will
+	not work. 
 	
 	The "data structure" is nothing special, just a set of nested dictionaries,
 	but it is a simple way to keep all of the relevant information in one place
@@ -441,16 +447,34 @@ def bf_read_target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 		SAPHIRES dictionary, described above. 
 	'''
 	#Target/Science Spectra Read in the name of files. 
-	t_f_names,w_range=np.loadtxt(spectra_list,unpack=True,dtype='S1000,S1000')
 
-	if (t_f_names.size == 1): 
-		t_f_names=np.array([t_f_names])
+	in_type = spectra_list.split('.')[-1]
 
-	if (w_range.size == 1):
-		w_range=np.array([w_range])
+	direct = ['fit','fits']
+	ord_list = ['ls','txt','dat']
+
+	if in_type in direct:
+		t_f_names = np.array([spectra_list])
+		order = np.array([0])
+		w_range = np.array(['*'])
+
+	if in_type in ord_list:
+		t_f_names,order,w_range = np.loadtxt(spectra_list,unpack=True,
+		                                     dtype=nplts+'10000,i,'+nplts+'10000')
+		if (t_f_names.size == 1): 
+			t_f_names=np.array([t_f_names])
+			order=np.array([order])
+			w_range=np.array([w_range])
+
+	if ((in_type not in direct) & (in_type not in ord_list)):
+		print('Input file in wrong format.')
+		print("If a single fits file, must end in '.fits' or '.fit'.")
+		print("If a input text file, must end in '.ls', '.dat', or '.txt'.")
+		return 0,0
 
     #Dictionary for output spectra
 	t_spectra={}
+	t_f_names_out=np.empty(0,dtype=nplts+'100')
 
 	#Read in Target spectra
 	for i in range(t_f_names.size):
@@ -459,13 +483,12 @@ def bf_read_target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 		t_w0=np.float(t_hdulist[0].header['CRVAL1'])
 		t_dw=np.float(t_hdulist[0].header['CDELT1'])
 
-		if tar_wnm == True:
-			t_w0=10.0*t_w0
-			t_dw=10.0*t_dw
-
 		if 'LTV1' in t_hdulist[0].header:
 			t_shift=np.float(t_hdulist[0].header['LTV1'])
 			t_w0=t_w0-t_shift*t_dw
+
+		t_w0=t_w0 * w_mult
+		t_dw=t_dw * w_mult
 
 		#linear wavelength array
 		t_w=np.arange(t_flux.size)*t_dw+t_w0
@@ -473,25 +496,33 @@ def bf_read_target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 		t_w,t_flux = bf_spec_trim(t_w,t_flux,w_range[i],'*',trim_style=trim_style)
 		#t_flux = t_flux[trim_mask]
 		
-		t_flux = t_flux / np.median(t_flux)
-
 		if norm == True:
-			x = np.arange(t_flux.size,dtype=float)
-			spl = bspl.iterfit(x, t_flux, maxiter = 15, 
-			                   lower = 0.3, upper = 2.0, bkspace = 40000, 
-			                   nord = 3 )[0]
-			cont = spl.value(x)[0]
-
-			t_flux = t_flux/cont
+			t_flux = t_flux / np.median(t_flux)
+			t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
 
 		#inverted spectrum
 		t_flux=1.0-t_flux
 
-		if w_range[i] != '*':
-			t_f_names[i]=t_f_names[i]+'['+w_range[i]+']'
+		if in_type in direct:
+				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+		if in_type in ord_list:
+			if w_range[j] == '*':
+				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+			else:
+				w_range_out = w_range[j]
 
-		t_spectra[t_f_names[i]]=[t_flux,t_w,t_dw,np.mean(t_w),0,0,0,0,w_range[i],\
-									0,0,0,0,0,0,1,'*',0]
+
+		t_f_names_out=np.append(t_f_names_out,
+			                        t_f_names[i]+'['+np.str(order[i])+']['+np.str(w_min)+'-'+
+			                        np.str(w_max)+']')
+
+		t_spectra[t_f_names_out[-1]]={'nflux': t_flux,
+									  'nwave': t_w,
+									  'ndw': t_dw,
+									  'wav_cent': np.mean(t_w),
+									  'w_region': w_range_out,
+									  'rv_shift': 0.0,
+									  'order_flag': 1}
 
 	if combine_all == True:
 		w_all = np.empty(0)
@@ -513,11 +544,23 @@ def bf_read_target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 
 		t_dw = np.median(w_all - np.roll(w_all,1))
 
-		f_t=interpolate.interp1d(w_all,flux_all)
+		t_spectra['Combined']={'nflux': flux_all,
+							   'nwave': w_all,
+							   'ndw': t_dw,
+							   'wav_cent': np.mean(w_all),
+							   'w_region': w_range_all,
+							   'rv_shift': 0.0,
+							   'order_flag': 1}
 
-		t_spectra['Combined']=[flux_all,w_all,t_dw,np.mean(w_all),0,0,0,0,\
-								w_range_all,0,0,0,0,0,0,1,'*',0]
-		
-		t_f_names=np.append(t_f_names,'Combined')
+		t_f_names_out=np.append(t_f_names_out,'Combined')
 
-	return t_f_names,t_spectra
+	return t_f_names_out,t_spectra
+
+
+
+
+
+
+
+
+	
