@@ -87,6 +87,52 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 	- 'clip' - remove data all together. This creates edges that can cause noise in the BF
 	- 'lin' - linearly interpolates over clipped regions
 	- 'spl' - interpolated over the clipped regions with a cubic spline - don't use this option.
+	
+
+	Paramters
+	---------
+	w_tar : array-like
+		Wavelength array, must be one dimensional.
+	
+	f : array-like
+		Flux array, must be one dimensional.
+	
+	w_range : str
+		Wavelength trimming string for the target star. 
+		Must have the general form "w1-w2,w3-w4" where '-' 
+		symbols includes the wavelength region, ',' symbols 
+		excludes them. There can be as many regions as you 
+		want, as long as it ends with an inclusive region 
+		(i.e. cannot end with a comma or dash). Wavelength 
+		values must ascend left to right. The '*' symbol 
+		includes everything.
+
+	temp_trim : str
+		Wavelength trimming string for the template star. 
+		Must have the general form "w1-w2,w3-w4" where '-' 
+		symbols includes the wavelength region, ',' symbols 
+		excludes them. There can be as many regions as you 
+		want, as long as it ends with an inclusive region 
+		(i.e. cannot end with a comma or dash). Wavelength 
+		values must ascend left to right. The '*' symbol 
+		includes everything.
+		
+
+	trim_style : str, options: 'clip', 'lin', 'spl'
+		If a wavelength region file is input in the 'spectra_list' parameter, 
+		this parameter describes how gaps are dealt with. 
+		- If 'clip', unused regions will be left as gaps.
+		- If 'lin', unused regions will be linearly interpolated over.
+		- If 'spl', unused regions will be interpolated over with a cubic 
+		  spline. You probably don't want to use this one.
+
+	Returns
+	-------
+	w_tar : str
+		The trimmed wavelength array
+
+	f : str
+		The trimmed flux array
 	'''
 	
 	#The following makes the indexing selection array, t_ind under various 
@@ -148,7 +194,7 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 	if ((w_range == '*') & (temp_trim == '*')):
 		t_ind = np.ones(w_tar.size,dtype=bool)
 
-	#This part deal with how you want to remove the specified regions:
+	#This part deal with how you want to handle the specified regions:
 	if trim_style == 'clip':
 		w_tar = w_tar[t_ind]
 		f = f[t_ind]
