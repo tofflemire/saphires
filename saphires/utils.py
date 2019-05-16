@@ -225,105 +225,102 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 	return w_tar,f
 
 
-def bf_prepare(t_f_names,t_spectra,temp_name,temp_spec,m,oversample=1,
-               quiet=False,trap_apod=0,cr_trim=-0.5,trim_style='clip'):
+def prepare(t_f_names,t_spectra,temp_name,temp_spec,oversample=1,
+            quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',vel='auto'):
 	'''
-	A function to prepare a target spectral dictionary (this can be a 
-	dictionary for a single spectrum or multiple spectra) with a template 
-	spectral dictionary (this must be a single spectrum) in order to 
-	compute the broadedning function.
+	A function to prepare a target spectral dictionary with a template 
+	spectral dictionary for use with SAPHIRES analysis tools. The preparation
+	ammounts to resampling the wavelength array to logarithmic spacing, which 
+	corresponds to linear velocity spacing. Linear velocity spacing is required 
+	for use TODCOR or compute a broadening function
 	
 	oversample - 
 	A key parameter of this function is "oversample". It sets the logarithmic 
-	spacing of the wavelength resampling and the corresponding velocity 
-	'resolution' of the broadening function. Generally, a higher oversampling
+	spacing of the wavelength resampling (and the corresponding velocity 
+	'resolution' of the broadening function). Generally, a higher oversampling
 	will produce better results, but it very quickly becomes expensive for two
 	reasons. One, your arrays become longer, and two, you have to increase the m
 	value (a proxy for the velocity regime probed) to cover the same velocity range. 
 
-	A low oversample value is problematic because if the intrinsitic width of your
-	tempate and target lines are the same, the broadening function should be a delta
-	function. The height/width of this function will depened on the location of 
-	velocity grid points in the BF in an undersampled case. This makes measurements 
-	of the RV and especially flux ratios problematic. 
+	A low oversample value can be problematic if the intrinsitic width of your
+	tempate and target lines are the same. In this case, the broadening function 
+	should be a delta function. The height/width of this function will depened on 
+	the location of velocity grid points in the BF in an undersampled case. This 
+	makes measurements of the RV and especially flux ratios problematic. 
 
-	If you have a very narrow lined template and a broad target spectrum, an 
-	oversample = 3 should be adequeate. In practice though, you may want something 
-	around 5. If you're unsure what value to use, look at the BF with low smoothing
+	If you're unsure what value to use, look at the BF with low smoothing
 	(i.e. high R). If the curves are jagged and look undersampled, increase the 
 	oversample parameter.
-
-	The target spectral dictionary must have this format of sub-arrays
-	assocated with each keyword:
-	
-	[0] - native flux array (inverted)
-	[1] - native wavelength array
-	[2] - native wavelength spacing value
-	[3] - Order Central Wavelength
-	[4] - 0 (single ints; this function will this with an array)
-	[5] - 0 (single ints; this function will this with an array)
-	[6] - 0 (single ints; this function will this with an array)
-	[7] - 0 (single ints; this function will this with an array)
-	[8] - wavelength region
-	[9] - 0 (single int; this function will input the template name)
-	[10]- template wavelength region
-	[11]- 0 (single int; this function will this with an array)
-
-	The template spectral dictionary must have this format of sub-arrays
-	associated with its single keyword:
-	
-	[0] - native flux array (inverted)
-	[1] - native wavelength array
-	[2] - native wavelength spacing value
-	[3] - iOrder Central Wavelength
-	[4] - wavelength region
-	
-	The output will be an updated version of the input target spectral 
-	dictionary. It will have the following format:
-
-	[0] - native flux array (inverted)
-    [1] - native wavelength array
-    [2] - native wavelength spacing value
-    [3] - Order Central Wavelength
-    [4] - resampled flux array (inverted)
-    [5] - resampled wavelength array
-    [6] - resampled template flux array (inverted)
-    [7] - velocity array - to be plot against the BF
-    [8] - wavelength region
-    [9] - template name
-    [10]- template wavelength region
-    [11]- broadening funciton
 
 	Parameters
 	----------
 	t_f_names: array-like
+		Array of keywords for a science spectrum SAPHIRES dictionary. Output of 
+		one of the saphires.io read-in functions.
 
 	t_spectra : python dictionary
+		SAPHIRES dictionary for the science spectrum. Output of one of the 
+		saphires.io read-in functions.
 
 	temp_name : array-like
+		Array of keywords for a template spectrum SAPHIRES dictionary. Output of 
+		one of the saphires.io read-in functions.
 	
 	temp_spec : python dictionary
-
-
-	m : int
+		SAPHIRES dictionary for the template spectrum. Output of one of the 
+		saphires.io read-in functions.		
 
 	oversample : float
-		Default is 1.
+		Factor by which the velocity resolution is oversampled. This parameter
+		has an extended discussion above. The default value is 1.
 
     quiet : bool
-    	False
+    	Specifies whether messaged are printed to the teminal. Specifically, if 
+    	the science and template spectrum do not overlap, this function will
+    	print and error. The default value is False.
 
     trap_apod : float
-    	Detault is 0, i.e. no apodization.
+    	Option to apodize (i.e. taper) the resampled flux array to zero near 
+    	the edges. A value of 0.1 will taper 10% of the array length on each 
+    	end of the array. Some previous studies that use broaden fuctions in 
+    	the literarure use this, claiming it reduced noise in the sidebands. I
+    	havent found this to be the case, but the functionallity exisits 
+    	nonetheless. The detault value is 0, i.e. no apodization.
 
-    cr_trim	:
-    	-0.5
+    cr_trim	: float
+		This parameter sets the value below which emission features are removed. 
+		Emission is this case is negative becuase the spectra are inverted. The
+		value must be negative. Points below this value are linearly interpolated
+		over. The defulat value is -0.1. If you don't want to clip anything, set 
+		this paramter to -np.inf.
 
-    trim_style : 
-
+    trim_style : str, options: 'clip', 'lin', 'spl'
+		If a wavelength region file is input in the 'spectra_list' parameter, 
+		this parameter describes how gaps are dealt with. 
+		- If 'clip', unused regions will be left as gaps.
+		- If 'lin', unused regions will be linearly interpolated over.
+		- If 'spl', unused regions will be interpolated over with a cubic 
+		  spline. You probably don't want to use this one.
 
 	Returns
 	-------
+	spectra : dictionary
+		A python dictionary with the SAPHIRES architecture. The output dictionary
+		will have 5 new keywords as a result of this function.
+
+		['vflux'] 		- resampled flux array (inverted)					
+		['vwave'] 		- resampled wavelength array							
+		['vflux_temp']	- resampled template flux array (inverted)			
+		['vel'] 		- velocity array to be used with the BF or CCF		
+		['temp_name'] 	- template name			
+
+		It also updates the values for the following keyword under the right 
+		conditions:
+
+		['order_flag'] 	- order flag will be updated to 0 if the order has no 
+						  overlap with the template. This tells other functions
+						  to ignore this order. 
+
 
 	'''
 	#########################################
@@ -381,7 +378,7 @@ def bf_prepare(t_f_names,t_spectra,temp_name,temp_spec,m,oversample=1,
 		min_dw=np.min([temp_spec[temp_name][2],spectra[t_f_names[i]][2]])
 
 		#inverse of the spectral resolution
-		r = min_dw/max_w/oversample #Over sampled by roughly a factor of 3 (assuming the resolution element is 3 pixels)
+		r = min_dw/max_w/oversample 
 
 		#velocity spacing in km/s
 		stepV=r*2.997924*10**5
@@ -416,47 +413,6 @@ def bf_prepare(t_f_names,t_spectra,temp_name,temp_spec,m,oversample=1,
 			temp_rflux = temp_rflux[0:-1]
 
 
-		##resampled fluxes and flux normalization if need be
-		#if tar_norm == False:
-		#	t_rflux = f_tar(w1t)
-		#
-		#if tar_norm == True:
-		#	flux = 1.0-spectra[t_f_names[i]][0]
-		#	x = np.arange(flux.size,dtype=float)
-		#	spl = bspl.iterfit(x, flux, maxiter = 15, 
-		#	                   lower = 0.3, upper = 2.0, bkspace = 40000, 
-		#	                   nord = 3)[0]
-		#	cont = spl.value(x)[0]
-		#
-		#	t_nflux = 1.0-(flux/cont)
-		#
-		#	f_t = interpolate.interp1d(spectra[t_f_names[i]][1],
-		#	                           t_nflux)
-		#
-		#	t_rflux = f_t(w1t)
-		#
-		#if temp_norm == False:
-		#	temp_rflux = f_temp(w1t)
-		#
-		#if temp_norm == True:
-		#	flux = 1.0 - f_temp(w1t)
-		#
-		#	x = np.arange(flux.size,dtype=float)
-		#	spl = bspl.iterfit(x, flux, maxiter = 15, 
-		#	                   lower = 0.3, upper = 2.0, bkspace = 40000, 
-		#	                   nord = 3 )[0]
-		#	cont = spl.value(x)[0]
-		#
-		#	temp_rflux = 1.0-(flux/cont)
-
-		#if (w1t.size/2.0 % 1) != 0:
-		#	w1t=w1t[0:-1]
-
-		#if (temp_rflux.size/2.0 % 1) != 0:
-		#	temp_rflux=temp_rflux[0:-1]
-
-		#if (t_rflux.size/2.0 % 1) != 0:
-		#	t_rflux=t_rflux[0:-1]
 
 		if trap_apod > 0:
 			trap_apod_fun = np.ones(w1t.size)
@@ -468,16 +424,7 @@ def bf_prepare(t_f_names,t_spectra,temp_name,temp_spec,m,oversample=1,
 			temp_rflux = temp_rflux * trap_apod_fun
 			t_rflux = t_rflux * trap_apod_fun
 
-		if w1t.size < m:
-			if quiet == False:
-				print t_f_names[i],t_spectra[t_f_names[i]][8]
-				print "The target mask region is smaller for the m value."
-				print w1t.size,'versus',m
-				print "You can either reduce m or remove this order from the input or don't worry about it."
-				print ' '
-			spectra[t_f_names[i]][5] = 0.0	
-			spectra[t_f_names[i]][15] = 0
-			continue
+		
 
 		spectra[t_f_names[i]][4] = t_rflux
 		spectra[t_f_names[i]][5] = w1t
@@ -489,8 +436,18 @@ def bf_prepare(t_f_names,t_spectra,temp_name,temp_spec,m,oversample=1,
 	return spectra
 
 
-
-
+# THIS IS IMPORTANT CODE THAT NEEDS TO BE PUT AT THE TOP OF THE bf.compute AND
+# xc.todcor FUNCTIONS
+#if w1t.size < m:
+#	if quiet == False:
+#		print t_f_names[i],t_spectra[t_f_names[i]][8]
+#		print "The target mask region is smaller for the m value."
+#		print w1t.size,'versus',m
+#		print "You can either reduce m or remove this order from the input or don't worry about it."
+#		print ' '
+#	spectra[t_f_names[i]][5] = 0.0	
+#	spectra[t_f_names[i]][15] = 0
+#	continue
 
 
 

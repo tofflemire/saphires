@@ -65,8 +65,8 @@ if py_version == 2:
 #17 - ['ccf_fit_params']- fit paramters of CCF								
 
 
-def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
-               trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
+def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
+             trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
 	'''
 	A function to read in a target spectrum, or list of target spectra, from 
 	a pickle dictionary with specific keywords, and put them into the 
@@ -95,7 +95,16 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 	   ['wav_cent'] 	- order central wavelength
 	   ['w_region'] 	- wavelength region
 	   ['rv_shift'] 	- initial rv shift
-	   ['order_flag'] 	- order flag				
+	   ['order_flag'] 	- order flag	
+
+	If you specify that you are reading in a template, there will only be
+	one keyword, the name of the template file, and the dictionary will only 
+	have a subset of the nested arrays that the science dictionaty has. 
+	Namely:
+	   ['nflux'] 		- native flux array (inverted)
+	   ['nwave'] 		- native wavelength array
+	   ['ndw'] 			- native wavelength spacing
+	   ['wav_cent'] 	- order central wavelength
 	
 	Additional keywords and data are added to the nested dictionaries by 
 	other SAPHIRES functions, e.g.:
@@ -107,7 +116,6 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 	['bf'] 				- broadening funciton								
 	['sbf'] 			- smoothed broadening function 						
 	['bf_fit_params'] 	- gaussian fit parameters							
-	['rv_shift'] 		- initial rv shift (used if you bf_compute_iter)					
 	More details on this is various functions. 
 
 	Many of the spectral analysis techniques (cross correlation, broadening 
@@ -144,6 +152,13 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 		calculation. And, if you remove overlapping regions, you can set the
 		'combine_all' parameter to True to create a stiched order, which can 
 		be useful.
+
+	temp : bool
+		Tell the function whether this is a template spectrum. Science and 
+		template spectra have slightly different formats, namely, that 
+		template spectra are comprised of one stiched spectrum instead of 
+		many orders. You can read them in just the same as a science spectrum
+		The default value is False.
 
 	combine_all : bool
 		Option to stitch together all spectral orders. This is useful generally,
@@ -299,7 +314,7 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 										  'rv_shift': 0.0,
 										  'order_flag': 1}
 
-	if combine_all == True:
+	if ((combine_all == True) | (temp == True)):
 		w_all = np.empty(0)
 		flux_all = np.empty(0)
 
@@ -329,10 +344,19 @@ def target_pkl(spectra_list,w_file=None,combine_all=True,norm=True,w_mult=1.0,
 
 		t_f_names_out=np.append(t_f_names_out,'Combined')
 
+	if temp == True:
+		temp_f_names_out = t_f_names[0]
+		temp_spectra[temp_f_names_out]={'nflux': flux_all,
+									 	'nwave': w_all,
+							   		 	'ndw': t_dw,
+							   		 	'wav_cent': np.mean(w_all),
+							   		 	'w_region': w_range_all1}
+		return temp_f_names_out,temp_spectra
+
 	return t_f_names_out,t_spectra
 
 
-def target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
+def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=False,
                 norm_w_width=200.0,trim_style='clip'):
 	'''
 	A function to read in a target spectrum, or list of target spectra, from 
@@ -371,7 +395,6 @@ def target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 	['bf'] 				- broadening funciton								
 	['sbf'] 			- smoothed broadening function 						
 	['bf_fit_params'] 	- gaussian fit parameters							
-	['rv_shift'] 		- initial rv shift (used if you bf_compute_iter)					
 	More details on this is various functions. 
 
 	Many of the spectral analysis techniques (cross correlation, broadening 
@@ -407,6 +430,13 @@ def target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 		calculation. And, if you remove overlapping regions, you can set the
 		'combine_all' parameter to True to create a stiched order, which can 
 		be useful.
+
+	temp : bool
+		Tell the function whether this is a template spectrum. Science and 
+		template spectra have slightly different formats, namely, that 
+		template spectra are comprised of one stiched spectrum instead of 
+		many orders. You can read them in just the same as a science spectrum
+		The default value is False.
 
 	combine_all : bool
 		Option to stitch together all spectral orders. This is useful generally,
@@ -524,7 +554,7 @@ def target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 									  'rv_shift': 0.0,
 									  'order_flag': 1}
 
-	if combine_all == True:
+	if ((combine_all == True) | (temp == True)):
 		w_all = np.empty(0)
 		flux_all = np.empty(0)
 
@@ -554,6 +584,15 @@ def target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 
 		t_f_names_out=np.append(t_f_names_out,'Combined')
 
+	if temp == True:
+		temp_f_names_out = t_f_names[0]
+		temp_spectra[temp_f_names_out]={'nflux': flux_all,
+									 	'nwave': w_all,
+							   		 	'ndw': t_dw,
+							   		 	'wav_cent': np.mean(w_all),
+							   		 	'w_region': w_range_all1}
+		return temp_f_names_out,temp_spectra
+
 	return t_f_names_out,t_spectra
 
 
@@ -563,4 +602,3 @@ def target_fits(spectra_list,w_mult=1.0,combine_all=True,norm=False,
 
 
 
-	
