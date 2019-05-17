@@ -45,6 +45,7 @@ if py_version == 2:
 #For python 2
 #spec = pkl.load(open('spec.p','rb'))
 
+#Science spectra
 #0  - ['nflux'] 		- native flux array (inverted)						
 #1  - ['nwave'] 		- native wavelength array							
 #2  - ['ndw'] 			- native wavelength spacing value					
@@ -64,6 +65,12 @@ if py_version == 2:
 #16 - ['w_region_iter'] - iter wavelength region								
 #17 - ['ccf_fit_params']- fit paramters of CCF								
 
+#Template spectra
+#[0] - ['nflux'] native flux array (inverted)
+#[1] - ['nwave'] native wavelength array
+#[2] - ['ndw'] native wavelength spacing value
+#[3] - ['wav_cent'] Order Central Wavelength
+#[4] - ['w_region'] wavelength region
 
 def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
              trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
@@ -345,12 +352,13 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 		t_f_names_out=np.append(t_f_names_out,'Combined')
 
 	if temp == True:
+		temp_spectra = {}
 		temp_f_names_out = t_f_names[0]
 		temp_spectra[temp_f_names_out]={'nflux': flux_all,
 									 	'nwave': w_all,
 							   		 	'ndw': t_dw,
 							   		 	'wav_cent': np.mean(w_all),
-							   		 	'w_region': w_range_all1}
+							   		 	'w_region': w_range_all}
 		return temp_f_names_out,temp_spectra
 
 	return t_f_names_out,t_spectra

@@ -226,7 +226,8 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 
 
 def prepare(t_f_names,t_spectra,temp_name,temp_spec,oversample=1,
-            quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',vel='auto'):
+            quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',
+            vel_spacing='auto'):
 	'''
 	A function to prepare a target spectral dictionary with a template 
 	spectral dictionary for use with SAPHIRES analysis tools. The preparation
@@ -302,6 +303,19 @@ def prepare(t_f_names,t_spectra,temp_name,temp_spec,oversample=1,
 		- If 'spl', unused regions will be interpolated over with a cubic 
 		  spline. You probably don't want to use this one.
 
+	vel_spacing : str, 'auto', or float
+		Parameter that determines how the velocity width of the resampled array 
+		is set. If 'auto', the velocity width will be set by the smallest velocity
+		separation between the native input science and template wavelength arrays. 
+		If this parameter is a float, the velocity spacing will be set to that value,
+		assuming it is in km/s. 
+		You can get wierd results if you put in a value that doesn't make sense, so 
+		I recommend the auto setting. This option is available for more advanced uses
+		that are only relevant if you are using TODCOR. See documentation there for a
+		relevant example. 
+		The oversample parameter is ignored when this parameter is set to a float.
+
+
 	Returns
 	-------
 	spectra : dictionary
@@ -331,17 +345,17 @@ def prepare(t_f_names,t_spectra,temp_name,temp_spec,oversample=1,
 	for i in range(t_f_names.size):
 		#print t_f_names[i]
 		
-		spectra[t_f_names[i]][9] = temp_name
+		spectra[t_f_names[i]]['temp_name'] = temp_name
 		
-		w_range = spectra[t_f_names[i]][8]
-		w_range_iter = spectra[t_f_names[i]][16]
+		w_range = spectra[t_f_names[i]]['w_region']
+		#w_range_iter = spectra[t_f_names[i]][16]
 
-		w_tar = spectra[t_f_names[i]][1]
-		flux_tar = spectra[t_f_names[i]][0]
+		w_tar = spectra[t_f_names[i]]['nwave']
+		flux_tar = spectra[t_f_names[i]]['nflux']
 		
-		temp_trim = temp_spec[temp_name][4]
-		w_temp = temp_spec[temp_name][1]
-		flux_temp = temp_spec[temp_name][0]
+		temp_trim = temp_spec[temp_name]['w_region']
+		w_temp = temp_spec[temp_name]['nwave']
+		flux_temp = temp_spec[temp_name]['nflux']
 		
 		#This gets rid of large emission lines and CRs by interpolating over them.
 		if np.min(flux_tar) < cr_trim:
@@ -354,16 +368,16 @@ def prepare(t_f_names,t_spectra,temp_name,temp_spec,oversample=1,
 			w_temp = w_temp[(w_temp >= np.min(w_temp[flux_temp > cr_trim]))&(w_temp <= np.max(w_temp[flux_temp > cr_trim]))]
 			flux_temp = f_temp(w_temp)
 
-		w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
-		w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range_iter,'*',trim_style=trim_style)
+		w_tar,flux_tar = spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
+		#w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range_iter,'*',trim_style=trim_style)
 
 		if w_tar.size == 0:
 			if quiet==False:
-				print t_f_names[i],w_range
-				print "No overlap between target and template."
-				print ' '
-			spectra[t_f_names[i]][5] = 0.0
-			spectra[t_f_names[i]][15] = 0
+				print(t_f_names[i],w_range)
+				print("No overlap between target and template.")
+				print(' ')
+			spectra[t_f_names[i]]['vwave'] = 0.0
+			spectra[t_f_names[i]]['order_flag'] = 0
 			continue
 
 		f_tar = interpolate.interp1d(w_tar,flux_tar)
@@ -373,46 +387,57 @@ def prepare(t_f_names,t_spectra,temp_name,temp_spec,oversample=1,
 
 		max_w = np.min([np.max(w_tar),np.max(w_temp)])
 
-		#Using the wavelength spacing for the template which is more
-		#technically motivated
-		min_dw=np.min([temp_spec[temp_name][2],spectra[t_f_names[i]][2]])
 
-		#inverse of the spectral resolution
-		r = min_dw/max_w/oversample 
+		if vel_spacing == 'auto':
+			#Using the wavelength spacing for the template which is more
+			#technically motivated
+			min_dw=np.min([temp_spec[temp_name]['ndw'],spectra[t_f_names[i]]['ndw']])
+	
+			#inverse of the spectral resolution
+			r = min_dw/max_w/oversample 
+	
+			#velocity spacing in km/s
+			stepV = r * 2.997924*10**5
+	
+			#velocity array
+			#vel=stepV*(np.arange(m)-m//2)
 
-		#velocity spacing in km/s
-		stepV=r*2.997924*10**5
+		if vel_spacing != 'auto':
+			stepV = vel_spacing
+			r = stepV / (2.997924*10**5)
 
-		#velocity array
-		vel=stepV*(np.arange(m)-m/2)
+			min_dw = r * max_w
 		
+		print(r)
+
 		#the largest array length between target and spectrum
 		#conditional below makes sure it is even
-
 		max_size = np.int(np.log(max_w/(min_w+1))/np.log(1+r))
 		if (max_size/2.0 % 1) != 0:
 			max_size=max_size-1
 
+		print(max_size)
+
 		#log wavelength spacing, linear velocity spacing
 		w1t=(min_w+1)*(1+r)**np.arange(max_size)
 		
+		print(w_range,np.min(w1t),np.max(w1t))
+
 		w1t_temp = copy.deepcopy(w1t)
 
 		t_rflux = f_tar(w1t)
 		temp_rflux = f_temp(w1t)
 
-		w1t,t_rflux = bf_spec_trim(w1t,t_rflux,w_range,temp_trim,trim_style=trim_style)
-		w1t,t_rflux = bf_spec_trim(w1t,t_rflux,w_range_iter,temp_trim,trim_style=trim_style)
+		w1t,t_rflux = spec_trim(w1t,t_rflux,w_range,temp_trim,trim_style=trim_style)
+		#w1t,t_rflux = bf_spec_trim(w1t,t_rflux,w_range_iter,temp_trim,trim_style=trim_style)
 
-		w1t_temp,temp_rflux = bf_spec_trim(w1t_temp,temp_rflux,w_range,temp_trim,trim_style=trim_style)
-		w1t_temp,temp_rflux = bf_spec_trim(w1t_temp,temp_rflux,w_range_iter,temp_trim,trim_style=trim_style)
+		w1t_temp,temp_rflux = spec_trim(w1t_temp,temp_rflux,w_range,temp_trim,trim_style=trim_style)
+		#w1t_temp,temp_rflux = bf_spec_trim(w1t_temp,temp_rflux,w_range_iter,temp_trim,trim_style=trim_style)
 
 		if (w1t.size/2.0 % 1) != 0:
 			w1t=w1t[0:-1]
 			t_rflux = t_rflux[0:-1]
 			temp_rflux = temp_rflux[0:-1]
-
-
 
 		if trap_apod > 0:
 			trap_apod_fun = np.ones(w1t.size)
@@ -424,14 +449,11 @@ def prepare(t_f_names,t_spectra,temp_name,temp_spec,oversample=1,
 			temp_rflux = temp_rflux * trap_apod_fun
 			t_rflux = t_rflux * trap_apod_fun
 
-		
-
-		spectra[t_f_names[i]][4] = t_rflux
-		spectra[t_f_names[i]][5] = w1t
-		spectra[t_f_names[i]][6] = temp_rflux
-		spectra[t_f_names[i]][7] = vel
-		spectra[t_f_names[i]][9] = temp_name
-		spectra[t_f_names[i]][10] = temp_spec[temp_name][4]
+		spectra[t_f_names[i]]['vflux'] = t_rflux
+		spectra[t_f_names[i]]['vwave'] = w1t
+		spectra[t_f_names[i]]['vflux_temp'] = temp_rflux
+		spectra[t_f_names[i]]['vel_spacing'] = stepV
+		spectra[t_f_names[i]]['w_region_temp'] = temp_spec[temp_name]['w_region']
 
 	return spectra
 
