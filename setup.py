@@ -17,6 +17,6 @@ setup(name='saphires',
       requires=['numpy',
                 'astropy',
                 'scipy',
-                'astropy',
                 'matplotlib',
-                'pickle'])
+                'pickle',
+                'PyQt5'])

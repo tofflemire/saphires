@@ -19,8 +19,6 @@ A collection of SAPHIRES functions that perform Fourier cross
 correlcations in various flavors and analyze their results. 
 '''
 
-#!/usr/bin/python
-
 # ---- Standard Library
 import sys
 import copy as copy
@@ -29,10 +27,8 @@ import copy as copy
 # ---- Third Party
 import numpy as np
 from scipy.optimize import curve_fit
-from scipy import interpolate
 import matplotlib
-
-matplotlib.use('Qt5Agg')
+from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 # ---- 
 
@@ -236,6 +232,8 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			spectra[t_f_names[i]]['order_flag'] = 0
 			continue
 
+		
+
 		c1,c1_v = utils.u_ccf(f_s,f_t1,m,v_spacing1) # The Primary CCF
 	
 		c2,c2_v = utils.u_ccf(f_s,f_t2,m,v_spacing1) # The Secondary CCF
@@ -276,10 +274,6 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			print('Make sure you are in an ipython session.')
 			vel_guess=[]
 
-			#fig = plt.figure()
-			#ax0 = plt.subplot(211)
-			#ax1 = plt.subplot(212, sharex = ax0, sharey=ax0)
-
 			fig,ax = plt.subplots(2,sharex=True,sharey=True)
 		
 			#A reminder that python indecies are ROW-COLUMN
@@ -299,20 +293,13 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 				cbar = plt.colorbar(cs,format="%3.2f",ax=ax[1])
 		
 			plt.tight_layout()
-			
+		
 			print('')
 			print("Press 'm' over the peak you want to fit.")
 			print("Press return when done.")
 
-			#plt.connect('key_press_event',press_key)
-
 			cid = fig.canvas.mpl_connect('key_press_event',press_key)
-			
-			#plt.show()#block=True)
-
-			#while len(vel_guess) == 0:
-			#	plt.pause(0.5)
-
+		
 			wait = p_input('')
 		
 			fig.canvas.mpl_disconnect(cid)
@@ -320,19 +307,6 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			plt.cla()
 		
 			plt.close()
-
-			#fig=plt.figure()
-			#ax1 = plt.subplot(211)
-			#ax2 = plt.subplot(212)
-			
-			#ax1.plot(t,x)
-			#ax2.plot(t,y)
-			
-			#ax1.get_shared_x_axes().join(ax1, ax2)
-			#ax1.set_xticklabels([])
-			#ax2.autoscale() ## call autoscale if needed
-			
-			#plt.show()
 
 		else:
 			vel_guess = guess
@@ -362,7 +336,7 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		                           p0=fit_guess, maxfev=20000,
 		                           bounds = ((0,np.min(c2_v_cut),np.min(c1_v_cut),0,0,0,0),
 		                           			(10,np.max(c2_v_cut),np.max(c1_v_cut),100,100,360,10)))
-		fit_gauss1d = utils.td_gaussian((c2_v_cutm,c1_v_cutm),*td_fit)
+		fit_gauss1d = td_gaussian((c2_v_cutm,c1_v_cutm),*td_fit)
 		fit_gauss = fit_gauss1d.reshape(c2_v_cut.size,c1_v_cut.size)
 
 		#-------------- 2D Quadratic Fit ------------------------------------------
@@ -395,10 +369,6 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 
 		else:
 			f_ratio = alpha_in
-
-		f_stamp = interpolate.interp2d(c1_v_cut,c2_v_cut,stamp,kind='cubic')
-		peak = f_stamp(td_fit[2],td_fit[1])[0]
-
 
 		spectra[t_f_names[k]]['tod_vals'] = np.array([td_fit[2],td_fit[1],f_ratio,peak])
 		spectra[t_f_names[k]]['tod_temps'] = np.array([temp1_name,temp2_name])
@@ -439,16 +409,14 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			if k == 0:
 				f.write('#Spectrum\tRV1\tRV2\tFlux Ratio\tPeak Height\n')
 			f.write(np.str(t_f_names[k])+'\t'+
-					np.str(np.round(td_fit[2],5))+'\t'+
-					np.str(np.round(td_fit[1],5))+'\t'+
-					#np.str(rv1_q)+'\t'+
-					#np.str(rv2_q)+'\t'+
-					#np.str(rv1_imax)+'\t'+
-					#np.str(rv2_imax)+'\t'+
-					np.str(np.round(f_ratio,3))+'\t'+
-					np.str(np.round(peak,3))+'\n')
-
-		vel_guess = []
+			        np.str(np.rouns(td_fit[2],5))+'\t'+
+			        np.str(np.rouns(td_fit[1],5))+'\t'+
+			        #np.str(rv1_q)+'\t'+
+			        #np.str(rv2_q)+'\t'+
+			        #np.str(rv1_imax)+'\t'+
+			        #np.str(rv2_imax)+'\t'+
+			       	np.str(np.round(f_ratio,3))+'\t'+
+			       	np.str(np.round(peak,3))+'\n')
 
 	if text_out == True:
 		f.close()
