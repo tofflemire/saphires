@@ -1,4 +1,4 @@
-from setuptools import setup
+from distutils.core import setup
 
 setup(name='saphires',
       version='0.1.0',

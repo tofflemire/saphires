@@ -16,6 +16,6 @@ Classifier: Topic :: Scientific/Engineering :: Astronomy
 Requires: numpy
 Requires: astropy
 Requires: scipy
-Requires: astropy
 Requires: matplotlib
 Requires: pickle
+Requires: PyQt5
