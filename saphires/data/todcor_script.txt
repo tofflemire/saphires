@@ -1,0 +1,15 @@
+import saphires as saph        
+tar,tar_spec = saph.io.read_fits('66212_20181025.ls',combine_all=False)
+temp_spec = saph.io.read_fits('redtemplate.ls',temp=True)
+tar_spec = saph.utils.prepare(tar,tar_spec,temp_spec,oversample=3)
+tar_spec = saph.xc.todcor(tar,tar_spec,tar_spec,vel_width=300,results=False)
+
+
+Ignore these, they are from an earlier version of the code.
+#import bf_all as bf
+#tarbf,tarbf_spec = bf.bf_read_target_fits('66212_20181025.ls',combine_all=False,norm=True)
+#tempbf,tempbf_spec = bf.bf_read_temp_fits('redtemplate.ls',norm=True)
+#tarbf_spec = bf.bf_prepare(tarbf,tarbf_spec,tempbf,tempbf_spec,301,oversample=3)
+
+
+
