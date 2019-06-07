@@ -26,6 +26,9 @@ import copy as copy
 # ---- Third Party
 import numpy as np
 from scipy import interpolate
+import matplotlib
+matplotlib.use('Qt5Agg')
+import matplotlib.pyplot as plt
 # ---- 
 
 # ---- Project
@@ -224,16 +227,22 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		- If 'spl', unused regions will be interpolated over with a cubic 
 		  spline. You probably don't want to use this one.
 
-	vel_spacing : str, 'auto', or float
+	vel_spacing : str; 'orders' or 'uniform', or float
 		Parameter that determines how the velocity width of the resampled array 
-		is set. If 'auto', the velocity width will be set by the smallest velocity
-		separation between the native input science and template wavelength arrays. 
+		is set. 
+		If 'orders', the velocity width will be set by the smallest velocity
+		separation between the native input science and template wavelength arrays on
+		an order by order basis.
+		If 'uniform', every order will have the same velocity spacing. This is useful
+		if you want to combine BFs for instance. The end result will generally be 
+		slightly oversampled, but other than taking a bit longer, to process, it should
+		not have any adverse effects. 
 		If this parameter is a float, the velocity spacing will be set to that value,
 		assuming it is in km/s. 
 		You can get wierd results if you put in a value that doesn't make sense, so 
-		I recommend the auto setting. This option is available for more advanced uses
-		that are only relevant if you are using TODCOR. See documentation there for a
-		relevant example. 
+		I recommend the orders or uniform setting. This option is available for more 
+		advanced use cases that may only relevant if you are using TODCOR. See 
+		documentation there for a relevant example. 
 		The oversample parameter is ignored when this parameter is set to a float.
 
 
@@ -265,13 +274,48 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 
 	spectra = copy.deepcopy(t_spectra)
 
+	max_w_orders = np.zeros(t_f_names.size)
+	min_w_orders = np.zeros(t_f_names.size)
+	min_dw_orders = np.zeros(t_f_names.size)
+
+	for i in range(t_f_names.size):
+		w_tar = spectra[t_f_names[i]]['nwave']
+		flux_tar = spectra[t_f_names[i]]['nflux']
+		w_range = spectra[t_f_names[i]]['w_region']
+	
+		w_temp = temp_spec['nwave']
+		flux_temp = temp_spec['nflux']
+		temp_trim = temp_spec['w_region']
+	
+		w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
+		
+		w_temp,flux_temp = bf_spec_trim(w_temp,flux_temp,w_range,temp_trim,trim_style=trim_style)
+		
+		min_w_orders[i] = np.max([np.min(w_tar),np.min(w_temp)])
+		max_w_orders[i] = np.min([np.max(w_tar),np.max(w_temp)])
+	
+		min_dw_orders[i]=np.min([temp_spec[temp_name][2],spectra[t_f_names[i]][2]])
+	
+	min_dw = np.min(min_dw_orders)
+	min_w = np.min(min_w_orders)
+	max_w = np.max(max_w_orders)
+
+	if vel_spacing == 'uniform':
+		r = np.min(min_dw/max_w/oversample)
+		#velocity spacing in km/s
+		stepV=r*2.997924*10**5
+
+	if type(vel_spacing) == float:
+		stepV = vel_spacing
+		r = stepV / (2.997924*10**5)
+		min_dw = r * max_w
+
 	for i in range(t_f_names.size):
 		#print t_f_names[i]
 		
 		spectra[t_f_names[i]]['temp_name'] = temp_spec['temp_name']
 		
 		w_range = spectra[t_f_names[i]]['w_region']
-		#w_range_iter = spectra[t_f_names[i]][16]
 
 		w_tar = spectra[t_f_names[i]]['nwave']
 		flux_tar = spectra[t_f_names[i]]['nflux']
@@ -294,7 +338,6 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 			flux_temp = f_temp(w_temp)
 
 		w_tar,flux_tar = spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
-		#w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range_iter,'*',trim_style=trim_style)
 
 		if w_tar.size == 0:
 			if quiet==False:
@@ -313,9 +356,8 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		max_w = np.min([np.max(w_tar),np.max(w_temp)])
 
 
-		if vel_spacing == 'auto':
-			#Using the wavelength spacing for the template which is more
-			#technically motivated
+		if vel_spacing == 'orders':
+			#Using the wavelength spacing of the most densely sampled spectrum
 			min_dw=np.min([temp_spec['ndw'],spectra[t_f_names[i]]['ndw']])
 	
 			#inverse of the spectral resolution
@@ -323,12 +365,6 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 	
 			#velocity spacing in km/s
 			stepV = r * 2.997924*10**5
-
-		if vel_spacing != 'auto':
-			stepV = vel_spacing
-			r = stepV / (2.997924*10**5)
-
-			min_dw = r * max_w
 		
 		#the largest array length between target and spectrum
 		#conditional below makes sure it is even
@@ -345,10 +381,8 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		temp_rflux = f_temp(w1t)
 
 		w1t,t_rflux = spec_trim(w1t,t_rflux,w_range,temp_trim,trim_style=trim_style)
-		#w1t,t_rflux = bf_spec_trim(w1t,t_rflux,w_range_iter,temp_trim,trim_style=trim_style)
 
 		w1t_temp,temp_rflux = spec_trim(w1t_temp,temp_rflux,w_range,temp_trim,trim_style=trim_style)
-		#w1t_temp,temp_rflux = bf_spec_trim(w1t_temp,temp_rflux,w_range_iter,temp_trim,trim_style=trim_style)
 
 		if (w1t.size/2.0 % 1) != 0:
 			w1t=w1t[0:-1]
