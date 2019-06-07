@@ -19,4 +19,5 @@ setup(name='saphires',
                 'scipy',
                 'matplotlib',
                 'pickle',
-                'PyQt5'])
+                'PyQt5',
+                'pdyl'])

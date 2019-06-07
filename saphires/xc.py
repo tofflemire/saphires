@@ -83,10 +83,10 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 	  alpha_fit to True. 
 	You select the peak you want to fit by pressing 'm' when the cursor
 	is over it.
-	Pressing 'return' will let the function continue.
+	Pressing 'return' in the terminal will let the function continue.
 
 	The procedure described above requires interactive capabilities 
-	that only work in an ipython session.
+	that may only work in an ipython session.
 
 	Alternatively, you can set the guess parameter and skip the interactive
 	bit. In this case it is fine, and faster to run in a standard python
@@ -103,7 +103,7 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 	to return the flux ratio value at the peak location.
 
 	How do I know I have the best template? 
-	- I typically take on high s/n spectrum where the primary and 
+	- I typically take a high s/n spectrum where the primary and 
 	  secondary are very well separated in velocity, and run todcor
 	  in the non-interactive mode over a grid of templates. The best pair 
 	  should produce the highest TOODCOR peak (returned in the 'tod_vals' 
@@ -276,10 +276,6 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			print('Make sure you are in an ipython session.')
 			vel_guess=[]
 
-			#fig = plt.figure()
-			#ax0 = plt.subplot(211)
-			#ax1 = plt.subplot(212, sharex = ax0, sharey=ax0)
-
 			fig,ax = plt.subplots(2,sharex=True,sharey=True)
 		
 			#A reminder that python indecies are ROW-COLUMN
@@ -290,6 +286,7 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			ax[0].set_xlabel('Secondary Velocity (km/s)')
 			ax[0].set_ylabel('Primary Velocity (km/s)')
 			cbar = plt.colorbar(cs,format="%3.2f",ax=ax[0])
+			ax[0].set_title('Two-Dimentional CCF')
 
 			if alpha_fit == True:
 				cs=ax[1].contour(c2_v,c1_v,alpha_f,cmap='YlGnBu',levels=np.arange(0,1,0.05))
@@ -297,6 +294,7 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 				ax[1].set_xlabel('Secondary Velocity (km/s)')
 				ax[1].set_ylabel('Primary Velocity (km/s)')
 				cbar = plt.colorbar(cs,format="%3.2f",ax=ax[1])
+				ax[1].set_title('Flux Ratio ($\alpha$)')
 		
 			plt.tight_layout()
 			
@@ -304,15 +302,8 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			print("Press 'm' over the peak you want to fit.")
 			print("Press return when done.")
 
-			#plt.connect('key_press_event',press_key)
-
 			cid = fig.canvas.mpl_connect('key_press_event',press_key)
 			
-			#plt.show()#block=True)
-
-			#while len(vel_guess) == 0:
-			#	plt.pause(0.5)
-
 			wait = p_input('')
 		
 			fig.canvas.mpl_disconnect(cid)
@@ -321,19 +312,6 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		
 			plt.close()
 
-			#fig=plt.figure()
-			#ax1 = plt.subplot(211)
-			#ax2 = plt.subplot(212)
-			
-			#ax1.plot(t,x)
-			#ax2.plot(t,y)
-			
-			#ax1.get_shared_x_axes().join(ax1, ax2)
-			#ax1.set_xticklabels([])
-			#ax2.autoscale() ## call autoscale if needed
-			
-			#plt.show()
-
 		else:
 			vel_guess = guess
 		
@@ -341,7 +319,7 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		pg_ind=np.where(np.abs(c1_v - vel_guess[0]) == np.min(np.abs(c1_v - vel_guess[0])))[0][0]
 		sg_ind=np.where(np.abs(c2_v - vel_guess[1]) == np.min(np.abs(c2_v - vel_guess[1])))[0][0]
 		
-		#The row-column nature of python arrays when ploting has things looking wierd here but the 
+		#The row-column nature of python arrays when ploting has things looking weird here but the 
 		#current set us is returning the correct answers.
 		stamp = tod[pg_ind-stamp_size:pg_ind+stamp_size+1,sg_ind-stamp_size:sg_ind+stamp_size+1]
 

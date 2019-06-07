@@ -2,7 +2,7 @@ import saphires as saph
 tar,tar_spec = saph.io.read_fits('66212_20181025.ls',combine_all=False)
 temp_spec = saph.io.read_fits('redtemplate.ls',temp=True)
 tar_spec = saph.utils.prepare(tar,tar_spec,temp_spec,oversample=3)
-tar_spec = saph.xc.todcor(tar,tar_spec,tar_spec,vel_width=300,results=False)
+tar_spec = saph.xc.todcor(tar,tar_spec,tar_spec,vel_width=400,results=False)
 
 
 Ignore these, they are from an earlier version of the code.
