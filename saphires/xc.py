@@ -14,12 +14,10 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 You should have received a copy of the MIT license with SAPHIRES.  
 If not, see <http://opensource.org/licenses/MIT>.
 
-Description:
+Module Description:
 A collection of SAPHIRES functions that perform Fourier cross 
 correlcations in various flavors and analyze their results. 
 '''
-
-#!/usr/bin/python
 
 # ---- Standard Library
 import sys
@@ -46,8 +44,8 @@ if py_version == 2:
 	p_input = raw_input
 	
 def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
-           stamp_size=5,alpha_fit=True,guess=False,
-           results=True,text_out=True):
+    stamp_size=5,alpha_fit=True,guess=False,
+    results=True,text_out=True):
 	'''
 	Two-Dimentional Cross Correlation
 	Algorithm framework - Zucker & Mazeh 1994 (Appendix)
@@ -209,10 +207,11 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		v_spacing2 = t_spec2[t_f_names[k]]['vel_spacing']
 		
 		if v_spacing1 != v_spacing2:
+			print('')
 			print('Different wavelength step in the two templates.')
-			print('See documentation for a fix.')
-			print('Exiting...')
-			return
+			print('This may have adverse effects that have not been fully explored.')
+			print('See documentation for possible work arounds.')
+			print('')
 		
 		m = np.int(vel_width / v_spacing1)
 

@@ -14,8 +14,13 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 You should have received a copy of the MIT license with SAPHIRES.  
 If not, see <http://opensource.org/licenses/MIT>.
 
-Description:
-A collection of utility functions used in the SAPHIRES package.
+Module Description:
+A collection of utility functions used in the SAPHIRES package. The 
+only function in here you are likely to use is prepare. The rest are
+called by other functions in the bf, xc, or io modules that are 
+tailored for typical users.
+
+Functions are listed in alphabetical order.
 '''
 
 # ---- Standard Library
@@ -35,75 +40,349 @@ import matplotlib.pyplot as plt
 from saphires.extras import bspline_acr as bspl
 # ----
 
-def u_ccf(f_s,f_t,m,v_spacing):
+
+def bf_map(template,m):
+    '''
+    Creates a two dimensional array from a template by shifting one unit
+    of the wavelength (velocity) array m/2 times to the right and m/2 to 
+    the left. This array, also known as the design matrix (des), is then 
+    input to bf_solve.
+
+    Template is the resampled flux array in log(lambda) space.
+
+    Parameters
+    ----------
+    template : array-like
+		The logarithmic wavelengthed spectral template. Must have an 
+		even numbered length.
+
+    m : int
+    	The number of steps to shift the template. Must be odd
+
+    Returns
+    -------
+    t : array-like
+    	The design matrix 
+    '''
+    t=0
+    n=template.size
+
+    if (n % 2) != 0:
+        print('Input array must be even')
+        return
+
+    if (m % 2) != 1:
+        print('Input m must be odd')
+        return
+
+    t=np.zeros([n-m+1,m])
+    for j in range(m):
+        for i in range(m//2,n-m//2):
+            t[i-m//2,j]=template[i-j+m//2]
+
+    return t
+
+
+def bf_singleplot(t_f_names,t_spectra,for_plotting,f_trim=20):
 	'''
-	This is the "under the hood" cross correlation function
-	called by xc.todcor and xc.ccf.
-
-	If you are looking for a ccf that plays nice with the
-	SAPHIRES dictionaties, use xc.ccf.
-
-	CCF Specifics: In this implementation, the cross correlation
-	at each point is normalized by the number of flux array values 
-	that went into that point, NOT the total number of point in the 
-	array. This makes the most sense to me, but most formulae you 
-	find do not do this.
+	A function to make a mega plot of all the spectra in a target 
+	dictionary. 
 
 	Parameters
 	----------
-	f_s: array-like
-		Input flux array from the science spectrum. Array assumes
-		that the corresponding wavelength array is spaced 
-		logarithmicly, i.e. in linear velocity spacing. 
+	t_f_names : array-like
+		Array of keywords for a science spectrum SAPHIRES dictionary. Output of 
+		one of the saphires.io read-in functions.
 
-	f_t: array-like
-		Input flux array from the template spectrum. Array assumes
-		that the corresponding wavelength array is spaced 
-		logarithmicly, i.e. in linear velocity spacing.
+	t_spectra : python dictionary
+		SAPHIRES dictionary for the science spectrum. Output of one of the 
+		saphires.io read-in functions.
 
-	m : int
-		Number of units in velocity space with which to compute the 
-		cross correlation, must be an odd number. 
+	for_plotting : python dictionary
+		A dictionary with all of the things you need to plot the fit profiles 
+		from saphires.bf.analysis.
 
-	v_spacing : float
-		The velocity spacing of the input flux arrays -- must be the 
-		same between them.
+	f_trim : int
+		The amount of points to trim from the edges of the BF before the fit is 
+		made. The edges are usually noisey. Units are in wavelength spacings. 
+		The default is 20.
 
 	Returns
 	-------
-	ccf : array-like
-		The computed cross correlation function
-
-	ccf_v : array-like
-		The velcoity that corresponds to each cross correaltion value
-		above. 
+	None
 
 	'''
-	if (m/2.0 % 1) == 0:
-		m=m-1
-		print('Subtracting 1 from m because it is even.')
 
-	f_s_ccf = f_s / np.std(f_s)
-	f_s_ccf = f_s_ccf - np.mean(f_s_ccf)
+	pp=PdfPages(t_f_names[0].split('.')[0]+'_allplots.pdf')
 
-	f_t_ccf = f_t / np.std(f_t)
-	f_t_ccf = f_t_ccf - np.mean(f_t_ccf)
+	for i in range(t_f_names.size):
+		w1=t_spectra[t_f_names[i]]['vwave']
+		target=t_spectra[t_f_names[i]]['vflux']
+		template=t_spectra[t_f_names[i]]['vflux_temp']
+		vel=t_spectra[t_f_names[i]]['vel']
+		temp_name=t_spectra[t_f_names[i]]['temp_name']
+		bf_sols=t_spectra[t_f_names[i]]['bf']
 
-	ccf = np.zeros(m)
-	for i in range(m):
-		ccf_i = i-(m-1)//2
-		if ccf_i < 0:
-			ccf[i] = (np.sum( f_s_ccf[:ccf_i] * 
-			                 np.roll(f_t_ccf,ccf_i)[:ccf_i] ) / 
-			          np.float(f_s_ccf[:ccf_i].size))
-		if ccf_i >=0:
-			ccf[i] = (np.sum( f_s_ccf[ccf_i:] * 
-			                 np.roll(f_t_ccf,ccf_i)[ccf_i:] ) / 
-					  np.float(f_s_ccf[ccf_i:].size))
+		bf_smooth = for_plotting[t_f_names[i]][0]
+		func = for_plotting[t_f_names[i]][1]
+		gs_fit = for_plotting[t_f_names[i]][2]
+	
+		m=vel.size
 
-	ccf_v = (np.arange(ccf.size)-(ccf.size-1)//2)*v_spacing
+		fig,ax=plt.subplots(2,sharex=True)
+		ax[0].set_title('Template',fontsize=8)
+		ax[0].set_ylabel('Normalized Flux')
+		ax[0].plot(w1,template)
+		ax[1].set_title('Target',fontsize=8)
+		ax[1].set_ylabel('Normalized Flux')
+		ax[1].plot(w1,target)
+		ax[1].set_xlabel(r'$\rm{\lambda}$ ($\rm{\AA}$)')
+		plt.tight_layout(pad=0.4)
+		pp.savefig()
+		plt.close()
 
-	return ccf,ccf_v
+		fig,ax=plt.subplots(1)
+		ax.plot(vel,bf_smooth,color='lightgrey',lw=4,ls='-')
+		ax.set_ylabel('Broadening Function')
+		ax.set_xlabel('Radial Velocity (km/s)')
+
+		if gs_fit.size == 10:
+			ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
+		                                         gs_fit[0],gs_fit[1],
+		                                         gs_fit[2],gs_fit[9]),
+					lw=2,ls='--',color='b',
+					label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
+			ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
+		                                         gs_fit[3],gs_fit[4],
+		                                         gs_fit[5],gs_fit[9]),
+					lw=2,ls='--',color='r',
+					label='Amp2: '+np.str(np.round(gs_fit[3]*gs_fit[5]*np.sqrt(2.0*np.pi),3)))
+			ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
+		                                         gs_fit[6],gs_fit[7],
+		                                         gs_fit[8],gs_fit[9]),
+					lw=2,ls='--',color='g',
+					label='Amp3: '+np.str(np.round(gs_fit[6]*gs_fit[8]*np.sqrt(2.0*np.pi),3)))
+
+		if gs_fit.size == 7:
+			if func == gauss_rot_off:
+				ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
+		    	                                     gs_fit[0],gs_fit[1],
+		    	                                     gs_fit[2],gs_fit[6]),
+						lw=2,ls='--',color='b',
+						label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
+
+				ax.plot(vel[f_trim:-f_trim],rot_pro(vel[f_trim:-f_trim],
+		    	                                     gs_fit[3],gs_fit[4],
+		    	                                     gs_fit[5],gs_fit[6]),
+						lw=2,ls='--',color='r',
+						label='Amp2: '+np.str(np.round(gs_fit[3],3)))
+
+			if func == d_gaussian_off:
+				ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
+		    	                                     gs_fit[0],gs_fit[1],
+		    	                                     gs_fit[2],gs_fit[6]),
+						lw=2,ls='--',color='b',
+						label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
+				
+				ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
+		    	                                     gs_fit[3],gs_fit[4],
+		    	                                     gs_fit[5],gs_fit[6]),
+						lw=2,ls='--',color='r',
+						label='Amp2: '+np.str(np.round(gs_fit[3]*gs_fit[5]*np.sqrt(2.0*np.pi),3)))
+
+
+		ax.plot(vel[f_trim:-f_trim],func(vel[f_trim:-f_trim],*gs_fit),
+	        	lw=1,ls='-',color='k')
+		ax.legend()
+		plt.tight_layout(pad=0.4)
+		pp.savefig()
+		plt.close()
+
+	pp.close()
+
+	return
+
+
+def bf_solve(des,u,ww,vt,target,m):
+    '''
+    Takes in the design matrix, the output of saphires.utils.bf_map, 
+    and creates an array of broadening functions where each row is 
+    for a different order of the solution.
+
+    The last index out the output (m-1) is the full solution.
+
+    All of them here for completeness, but in practice, the full 
+    solution with gaussian smoothing is used to derive RVs and flux ratios.
+    
+    Parameters
+    ----------
+	des : arraly-like
+		Design Matrix computed by saphires.utils.bf_map
+
+	u : array-like
+		One of the outputs of the design matrix's singular value 
+		decomposition
+
+	ww : array-like
+		One of the outputs of the design matrix's singular value 
+		decomposition
+
+	vt : array-like
+		One of the outputs of the design matrix's singular value 
+		decomposition
+
+	target : array-like
+		The target spectrum the corresponds to the template spectrum 
+		that was used to make the design matrix.
+
+	m : int
+		Number of pixel shifts to compute
+
+	Returns
+    -------
+    b_sols : array-like
+    	Matrix of BF solutions for different orders. The last order if the 
+    	one to use. 
+
+    sig : array-like
+    	Uncertainty array for each order. 
+    '''
+
+    #turning ww into a matrix
+    ww_mat=np.zeros([m,m])
+    for i in range(m):
+        ww_mat[i,i]=ww[i]
+
+    #turning ww into its inverse (same as the transpose in this case) matrix.
+    ww1=np.zeros([m,m])
+    for i in range(m):
+        ww1[i,i]=1.0/ww[i]
+        
+    #just making sure all the math went okay.
+    if np.allclose(des, np.dot(np.dot(u,ww_mat),vt)) == False:
+        print('Something went wrong with the matrix math in bf_sols')
+        return
+
+    #trimming target spectrum to have the right length
+    target_trim=target[m//2:target.size-m//2]
+    
+    #computing the broadening function
+    b_sols=np.zeros([m,m])
+    for i in range(m):
+        wk=np.zeros([m,m])
+        wb=ww[0:i]
+        for j in range(wb.size):
+            wk[j,j]=1.0/wb[j]
+        b_sols[i,:] = np.dot(np.dot(np.transpose(vt), wk),
+                             np.dot(np.transpose(u),target_trim))
+    
+    #computing the error of the fit between the two. 
+    sig=np.zeros(m)
+    pred=np.dot(des,np.transpose(b_sols))
+    for i in range(m):
+        sig[i]=np.sqrt(np.sum((pred[:,i]-target_trim)**2)/m)
+    
+    return b_sols,sig
+
+
+def bf_text_output(ofname,target,template,gs_fit,rchis,rv_weight,fit_int):
+	'''
+	A function to output the results of saphires.bf.analysis to a text file.
+	
+	Parameters
+	----------
+	ofname : str
+		The name of the output file.
+
+	target : str
+		The name of the target spectrum.
+
+	template : str
+		The name of the template spectrum.
+
+	gs_fit : array-like
+		An array of the profile fit parameters from saphire.bf.analysis.
+
+	rchis : float
+		The reduced chi square of the saphires.bf.analysis fit with the data.
+
+	fit_int : array-like
+		Array of profile integrals from the saphires.bf.analysis fit.
+
+	Returns
+	-------
+	None
+
+	'''
+
+	if os.path.exists('./'+ofname) == False:
+		f=open(ofname,'w')
+		f.write('#Column Details\n')
+		f.write('#System Time\n')
+		f.write('#Fit Parameters - For each profile fit, the following:')
+		f.write('# - Amp, RV (km/s), Sigma, Integral\n')
+		f.write('#Reduced Chi Squared of Fit\n')
+		f.write('#Target File Name\n')
+		f.write('#Template File Name\n')
+	    
+	else:
+		f=open(ofname,'a')
+
+	f.write(str(datetime.now())[0:-5]+'\t')
+
+	if gs_fit.size==10:
+		peak_ind=np.argsort([gs_fit[0],gs_fit[3],gs_fit[6]])[::-1]*3+1
+		f.write(np.str(np.round(gs_fit[peak_ind[0]-1],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[0]],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[0]+1],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[0]-1]*
+		                        gs_fit[peak_ind[0]+1]*np.sqrt(2*np.pi),2))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[1]-1],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[1]],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[1]+1],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[1]-1]*
+		                        gs_fit[peak_ind[1]+1]*np.sqrt(2*np.pi),2))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[2]-1],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[2]],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[2]+1],4))+'\t')
+		f.write(np.str(np.round(gs_fit[peak_ind[2]-1]*
+		                        gs_fit[peak_ind[2]+1]*np.sqrt(2*np.pi),2))+'\t')
+
+	if gs_fit.size==7:
+		if fit_int[0]>fit_int[1]:
+			f.write(np.str(np.round(gs_fit[0],4))+'\t')
+			f.write(np.str(np.round(gs_fit[1],4))+'\t')
+			f.write(np.str(np.round(gs_fit[2],4))+'\t')
+			f.write(np.str(np.round(fit_int[0],2))+'\t')
+			f.write(np.str(np.round(gs_fit[3],4))+'\t')
+			f.write(np.str(np.round(gs_fit[4],4))+'\t')
+			f.write(np.str(np.round(gs_fit[5],4))+'\t')
+			f.write(np.str(np.round(fit_int[1],2))+'\t')
+		else:
+			f.write(np.str(np.round(gs_fit[3],4))+'\t')
+			f.write(np.str(np.round(gs_fit[4],4))+'\t')
+			f.write(np.str(np.round(gs_fit[5],4))+'\t')
+			f.write(np.str(np.round(fit_int[1],2))+'\t')
+			f.write(np.str(np.round(gs_fit[0],4))+'\t')
+			f.write(np.str(np.round(gs_fit[1],4))+'\t')
+			f.write(np.str(np.round(gs_fit[2],4))+'\t')
+			f.write(np.str(np.round(fit_int[0],2))+'\t')
+
+	if gs_fit.size==4:
+		f.write(np.str(np.round(gs_fit[0],4))+'\t')
+		f.write(np.str(np.round(gs_fit[1],4))+'\t')
+		f.write(np.str(np.round(gs_fit[2],4))+'\t')
+		f.write(np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2*np.pi),2))+'\t')
+	
+	f.write(np.str(np.round(rchis,3))+'\t')
+	f.write(np.str(np.round(rv_weight,3))+'\t')
+
+	f.write(target+'\t')
+	f.write(template+'\n')
+
+	f.close()
+
+	return
 
 
 def cont_norm(w,f,w_width=200.0):
@@ -153,9 +432,136 @@ def cont_norm(w,f,w_width=200.0):
 	return f_norm
 
 
+def gaussian_off(x,A,x0,sig,o):
+    '''
+    A simple gaussian function with a constant vetical offset.
+    This Gaussian is not normalized in the typical sense.
+
+	Parameters
+	----------
+	x : array-like
+		Array of x values over which the Gaussian profile will 
+		be computed.
+
+	A : float
+		Amplitude of the Gaussian profile. 
+
+	x0 : float
+		Center of the Gaussian profile.
+
+	sig : float
+		Standard deviation (sigma) of the Gaussian profile. 
+
+	o : float
+		Vertical offset of the Gaussian profile. 
+
+    Returns
+	-------
+	profile : array-like
+		The Gaussian profile specified over the input x array.
+		Array has the same length as x.
+    '''
+
+    return A*np.e**(-(x-x0)**2/(2.0*sig**2))+o
+
+
+def make_rot_pro_ip(R,e=0.75):
+	'''
+	A function to make a specific rotationally broadened fitting 
+	function with a specific limb-darkening parameter that is 
+	convolved with the instrumental profile that corresponds to 
+	a given spectral resolution.
+
+	The output profile is uses the linear limb darkening law from
+	Gray 2005
+
+	Parameters
+	----------
+	R : float
+		The resolution that corresponds to the spectrograph's 
+		instrumental profile. 
+
+	e : float
+		Linear limb darkening parameter. Default is 0.75, 
+		appropriate for a low-mass star.
+
+	Returns
+	-------
+	rot_pro_ip : function
+		A function that returns the line profile for a rotationally
+		broadened star with the limb darkening parameter given by the make
+		function and that have been convolved with the instrumental 
+		profile specified by the spectral resolution by the make function 
+		above.
+
+		Parameters
+		----------
+		x : array-like
+			X array values, should be provided in velocity in km/s, over
+			which the smooth rotationally broadened profile will be 
+			computed. 
+
+		A : float
+			Amplitude of the smoothed rotationally broadened profile. 
+			Equal to the profile's integral.
+
+		rv : float
+			RV center of the profile. 
+
+		rvw : float
+			The vsini of the profile. 
+
+		o : float
+			The vertical offset of the profile. 
+
+		Returns
+		-------
+		prof_conv : array-like
+			The smoothed rotationally broadened profile specified by the
+			paramteres above, over the input x array. Array has the same 
+			length as x.
+
+	'''
+	FWHM = (2.997924*10**5)/R
+	sig = FWHM/(2.0*np.sqrt(2.0*np.log(2.0)))
+
+	def rot_pro_ip(x,A,rv,rvw,o):
+		'''
+		A thorough descrition of this function is provieded in the main 
+		function. 
+
+		Rotational line broadening function. 
+	
+		To produce an actual line profile, you have to convolve this function
+		with an acutal spectrum. 
+	
+		In this form it can be fit directly to a the Broadening Fucntion. 
+	
+		This is in velocity so if you're going to convolve this with a spectrum 
+		make sure to take the appropriate cautions.
+		'''
+
+		c1 = (2*(1-e))/(np.pi*rvw*(1-e/3.0))
+		c2 = e/(2*rvw*(1-e/3.0))
+	
+		prof=A*(c1*np.sqrt(1-((x-rv)/rvw)**2)+c2*(1-((x-rv)/rvw)**2))+o
+	
+		prof[np.isnan(prof)] = o
+	
+		v_spacing = x[1]-x[0]
+	
+		smooth_sigma = sig/v_spacing
+	
+		prof_conv=gaussian_filter(prof,sigma=smooth_sigma)
+	
+		return prof_conv
+
+	return rot_pro_ip
+
+
 def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
-            quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',
-            vel_spacing='auto'):
+    quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',
+    vel_spacing='auto'):
 	'''
 	A function to prepare a target spectral dictionary with a template 
 	spectral dictionary for use with SAPHIRES analysis tools. The preparation
@@ -408,17 +814,51 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 	return spectra
 
 
+def RChiS(x,y,yerr,func,params):
+	'''
+	A function to compute the Reduced Chi Square between some data and 
+	a model. 
+
+	Parameters
+	----------
+	x : array-like
+		Array of x values for data.
+
+	y : array-like
+		Array of y values for data.
+
+	yerr : array-like
+		Array of 1-sigma uncertainties for y vaules. 
+
+	func : function
+		Function being compared to the data.
+
+	params : array-like
+		List of parameter values for the function above.
+
+	Returns
+	-------
+	rchis : float
+		The reduced chi square between the data and model.
+
+	'''
+	rchis=np.sum((y-func(x,*params))**2 / yerr**2 )/(x.size-params.size)
+
+	return rchis
+
+
 def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 	'''
 	A function to select certain regions of a spectrum with which
 	to compute the broadedning function. 
 
 	trim_style - refers to how you want to deal with the bad regions
-	- 'clip' - remove data all together. This creates edges that can cause noise in the BF
-	- 'lin' - linearly interpolates over clipped regions
-	- 'spl' - interpolated over the clipped regions with a cubic spline - don't use this option.
+	- 'clip' - remove data all together. This creates edges that can 
+			   cause noise in the BF
+	- 'lin'  - linearly interpolates over clipped regions
+	- 'spl'  - interpolated over the clipped regions with a cubic 
+			   spline - don't use this option.
 	
-
 	Paramters
 	---------
 	w_tar : array-like
@@ -610,6 +1050,78 @@ def td_gaussian(xy_ins, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 	z = g.ravel()
 
 	return z
+
+
+def u_ccf(f_s,f_t,m,v_spacing):
+	'''
+	This is the "under the hood" cross correlation function
+	called by xc.todcor and xc.ccf.
+
+	If you are looking for a ccf that plays nice with the
+	SAPHIRES dictionaties, use xc.ccf.
+
+	CCF Specifics: In this implementation, the cross correlation
+	at each point is normalized by the number of flux array values 
+	that went into that point, NOT the total number of point in the 
+	array. This makes the most sense to me, but most formulae you 
+	find do not do this.
+
+	Parameters
+	----------
+	f_s: array-like
+		Input flux array from the science spectrum. Array assumes
+		that the corresponding wavelength array is spaced 
+		logarithmicly, i.e. in linear velocity spacing. 
+
+	f_t: array-like
+		Input flux array from the template spectrum. Array assumes
+		that the corresponding wavelength array is spaced 
+		logarithmicly, i.e. in linear velocity spacing.
+
+	m : int
+		Number of units in velocity space with which to compute the 
+		cross correlation, must be an odd number. 
+
+	v_spacing : float
+		The velocity spacing of the input flux arrays -- must be the 
+		same between them.
+
+	Returns
+	-------
+	ccf : array-like
+		The computed cross correlation function
+
+	ccf_v : array-like
+		The velcoity that corresponds to each cross correaltion value
+		above. 
+
+	'''
+	if (m/2.0 % 1) == 0:
+		m=m-1
+		print('Subtracting 1 from m because it is even.')
+
+	f_s_ccf = f_s / np.std(f_s)
+	f_s_ccf = f_s_ccf - np.mean(f_s_ccf)
+
+	f_t_ccf = f_t / np.std(f_t)
+	f_t_ccf = f_t_ccf - np.mean(f_t_ccf)
+
+	ccf = np.zeros(m)
+	for i in range(m):
+		ccf_i = i-(m-1)//2
+		if ccf_i < 0:
+			ccf[i] = (np.sum( f_s_ccf[:ccf_i] * 
+			                 np.roll(f_t_ccf,ccf_i)[:ccf_i] ) / 
+			          np.float(f_s_ccf[:ccf_i].size))
+		if ccf_i >=0:
+			ccf[i] = (np.sum( f_s_ccf[ccf_i:] * 
+			                 np.roll(f_t_ccf,ccf_i)[ccf_i:] ) / 
+					  np.float(f_s_ccf[ccf_i:].size))
+
+	ccf_v = (np.arange(ccf.size)-(ccf.size-1)//2)*v_spacing
+
+	return ccf,ccf_v
+
 
 
 # THIS IS IMPORTANT CODE THAT NEEDS TO BE PUT AT THE TOP OF THE bf.compute AND

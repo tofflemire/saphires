@@ -18,6 +18,7 @@ Module Description:
 A collection of functions that read in and out put spectra in the 
 SAPHIRES data format.
 '''
+
 # ---- Standard Library
 import sys
 # ----
@@ -35,9 +36,9 @@ from saphires.extras import bspline_acr as bspl
 
 py_version = sys.version_info.major
 if py_version == 3:
-	nplts = 'U'	#the numph letter for a string
+	nplts = 'U'	#the numpy letter for a string
 if py_version == 2:
-	nplts = 'S' #the numph letter for a string
+	nplts = 'S' #the numpy letter for a string
 
 #For python 3
 #spec = pkl.load(open('spec.p','rb'),encoding='bytes')
@@ -46,24 +47,25 @@ if py_version == 2:
 #spec = pkl.load(open('spec.p','rb'))
 
 #Science spectra
-#0  - ['nflux'] 		- native flux array (inverted)						
-#1  - ['nwave'] 		- native wavelength array							
-#2  - ['ndw'] 			- native wavelength spacing value					
-#3  - ['wav_cent'] 		- Order Central Wavelength							
-#4  - ['vflux'] 		- resampled flux array (inverted)					
-#5  - ['vwave'] 		- resampled wavelength array							
-#6  - ['vflux_temp'] 	- resampled template flux array (inverted)			
-#7  - ['vel'] 			- velocity array to be used with the BF				
-#8  - ['w_region'] 		- wavelength region									
-#9  - ['temp_name'] 	- template name										
+#-0  - ['nflux'] 		- native flux array (inverted)						
+#-1  - ['nwave'] 		- native wavelength array							
+#-2  - ['ndw'] 			- native wavelength spacing value					
+#-3  - ['wav_cent']		- Order Central Wavelength							
+#-4  - ['vflux'] 		- resampled flux array (inverted)					
+#-5  - ['vwave'] 		- resampled wavelength array							
+#-6  - ['vflux_temp'] 	- resampled template flux array (inverted)			
+#-7  - ['vel'] 			- velocity array to be used with the BF				
+#-8  - ['w_region']		- wavelength region									
+#-9  - ['temp_name'] 	- template name										
 #10 - ['w_region_temp'] - template wavelength region							
-#11 - ['bf'] 			- broadening funciton								
-#12 - ['sbf'] 			- smoothed broadening function 						
-#13 - ['bf_fit_params'] - gaussian fit parameters							
-#14 - ['rv_shift'] 		- initial rv shift (used if you bf_compute_iter)		
-#15 - ['order_flag'] 	- order flag											
+#-11 - ['bf'] 			- broadening funciton								
+#-12 - ['bf_smooth']	- smoothed broadening function 						
+#-13 - ['bf_fits'] 		- gaussian fit parameters							
+#-14 - ['rv_shift'] 		- initial rv shift (used if you bf_compute_iter)		
+#-15 - ['order_flag'] 	- order flag											
 #16 - ['w_region_iter'] - iter wavelength region								
 #17 - ['ccf_fit_params']- fit paramters of CCF								
+#-18 - ['vel_spacing']  - velocity spaving of the vel array.
 
 #Template spectra
 #[0] - ['nflux'] native flux array (inverted)
@@ -73,7 +75,7 @@ if py_version == 2:
 #[4] - ['w_region'] wavelength region
 
 def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
-             trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
+    trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
 	'''
 	A function to read in a target spectrum, or list of target spectra, from 
 	a pickle dictionary with specific keywords, and put them into the 
@@ -116,15 +118,15 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 	
 	Additional keywords and data are added to the nested dictionaries by 
 	other SAPHIRES functions, e.g.:
-	['vflux'] 			- resampled flux array (inverted)					
-	['vwave'] 			- resampled wavelength array							
-	['vflux_temp'] 		- resampled template flux array (inverted)			
-	['vel'] 			- velocity array to be used with the BF or CCF		
-	['temp_name'] 		- template name										
-	['bf'] 				- broadening funciton								
-	['sbf'] 			- smoothed broadening function 						
-	['bf_fit_params'] 	- gaussian fit parameters							
-	More details on this is various functions. 
+	['vflux'] 		- resampled flux array (inverted)					
+	['vwave'] 		- resampled wavelength array							
+	['vflux_temp'] 	- resampled template flux array (inverted)			
+	['vel'] 		- velocity array to be used with the BF or CCF		
+	['temp_name'] 	- template name										
+	['bf'] 			- broadening funciton								
+	['bf_smooth']	- smoothed broadening function 						
+	['bf_fits'] 	- gaussian fit parameters							
+	More details on these are provided in other various functions. 
 
 	Many of the spectral analysis techniques (cross correlation, broadening 
 	function, etc) work with a inverted spectrum, i.e. the continuum is at
@@ -375,7 +377,7 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 
 
 def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
-                norm_w_width=200.0,trim_style='clip'):
+    norm_w_width=200.0,trim_style='clip'):
 	'''
 	A function to read in a target spectrum, or list of target spectra, from 
 	an IRAF friendly fits file with a single order, and put them into the 
@@ -634,9 +636,8 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 	return t_f_names_out,t_spectra
 
 
-
 def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
-                norm_w_width=200.0,trim_style='clip',header_wave=False):
+    norm_w_width=200.0,trim_style='clip',header_wave=False):
 	'''
 	A function to read in a target spectrum, or list of target spectra, from 
 	an IRAF friendly multi-extension fits file, and put them into the 
