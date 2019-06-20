@@ -66,6 +66,8 @@ if py_version == 2:
 #16 - ['w_region_iter'] - iter wavelength region								
 #17 - ['ccf_fit_params']- fit paramters of CCF								
 #-18 - ['vel_spacing']  - velocity spaving of the vel array.
+#['tod_vals'] 
+#['tod_temps']
 
 #Template spectra
 #[0] - ['nflux'] native flux array (inverted)

@@ -34,11 +34,21 @@ from scipy import interpolate
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+import pickle as pkl
+from matplotlib.backends.backend_pdf import PdfPages
 # ---- 
 
 # ---- Project
 from saphires.extras import bspline_acr as bspl
 # ----
+
+py_version = sys.version_info.major
+if py_version == 3:
+	nplts = 'U'	#the numpy letter for a string
+	p_input = input
+if py_version == 2:
+	nplts = 'S' #the numpy letter for a string
+	p_input = raw_input
 
 
 def bf_map(template,m):
@@ -164,18 +174,18 @@ def bf_singleplot(t_f_names,t_spectra,for_plotting,f_trim=20):
 					label='Amp3: '+np.str(np.round(gs_fit[6]*gs_fit[8]*np.sqrt(2.0*np.pi),3)))
 
 		if gs_fit.size == 7:
-			if func == gauss_rot_off:
-				ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
-		    	                                     gs_fit[0],gs_fit[1],
-		    	                                     gs_fit[2],gs_fit[6]),
-						lw=2,ls='--',color='b',
-						label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
-
-				ax.plot(vel[f_trim:-f_trim],rot_pro(vel[f_trim:-f_trim],
-		    	                                     gs_fit[3],gs_fit[4],
-		    	                                     gs_fit[5],gs_fit[6]),
-						lw=2,ls='--',color='r',
-						label='Amp2: '+np.str(np.round(gs_fit[3],3)))
+			#if func == gauss_rot_off:
+			#	ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
+		    #	                                     gs_fit[0],gs_fit[1],
+		    #	                                     gs_fit[2],gs_fit[6]),
+			#			lw=2,ls='--',color='b',
+			#			label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
+			#
+			#	ax.plot(vel[f_trim:-f_trim],rot_pro(vel[f_trim:-f_trim],
+		    #	                                     gs_fit[3],gs_fit[4],
+		    #	                                     gs_fit[5],gs_fit[6]),
+			#			lw=2,ls='--',color='r',
+			#			label='Amp2: '+np.str(np.round(gs_fit[3],3)))
 
 			if func == d_gaussian_off:
 				ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
@@ -432,6 +442,47 @@ def cont_norm(w,f,w_width=200.0):
 	return f_norm
 
 
+def d_gaussian_off(x,A1,x01,sig1,A2,x02,sig2,o):
+    '''
+    A double gaussian function with a constant vetical offset.
+
+    Parameters
+	----------
+	x : array-like
+		Array of x values over which the Gaussian profile will 
+		be computed.
+
+	A1 : float
+		Amplitude of the first Gaussian profile. 
+
+	x01 : float
+		Center of the first Gaussian profile.
+
+	sig1 : float
+		Standard deviation (sigma) of the first Gaussian profile. 
+
+	A2 : float
+		Amplitude of the second Gaussian profile. 
+
+	x02 : float
+		Center of the second Gaussian profile.
+
+	sig2 : float
+		Standard deviation (sigma) of the second Gaussian profile. 
+
+	o : float
+		Vertical offset of the Gaussian mixture. 
+
+    Returns
+	-------
+	profile : array-like
+		The Gaussian mixture specified over the input x array.
+		Array has the same length as x.
+    '''
+    return (A1*np.e**(-(x-x01)**2/(2.0*sig1**2))+
+            A2*np.e**(-(x-x02)**2/(2.0*sig2**2))+o)
+
+
 def gaussian_off(x,A,x0,sig,o):
     '''
     A simple gaussian function with a constant vetical offset.
@@ -561,7 +612,7 @@ def make_rot_pro_ip(R,e=0.75):
 
 def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
     quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',
-    vel_spacing='auto'):
+    vel_spacing='orders'):
 	'''
 	A function to prepare a target spectral dictionary with a template 
 	spectral dictionary for use with SAPHIRES analysis tools. The preparation
@@ -693,14 +744,14 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		flux_temp = temp_spec['nflux']
 		temp_trim = temp_spec['w_region']
 	
-		w_tar,flux_tar = bf_spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
+		w_tar,flux_tar = spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
 		
-		w_temp,flux_temp = bf_spec_trim(w_temp,flux_temp,w_range,temp_trim,trim_style=trim_style)
+		w_temp,flux_temp = spec_trim(w_temp,flux_temp,w_range,temp_trim,trim_style=trim_style)
 		
 		min_w_orders[i] = np.max([np.min(w_tar),np.min(w_temp)])
 		max_w_orders[i] = np.min([np.max(w_tar),np.max(w_temp)])
 	
-		min_dw_orders[i]=np.min([temp_spec[temp_name][2],spectra[t_f_names[i]][2]])
+		min_dw_orders[i]=np.min([temp_spec['ndw'],spectra[t_f_names[i]]['ndw']])
 	
 	min_dw = np.min(min_dw_orders)
 	min_w = np.min(min_w_orders)
@@ -717,8 +768,6 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		min_dw = r * max_w
 
 	for i in range(t_f_names.size):
-		#print t_f_names[i]
-		
 		spectra[t_f_names[i]]['temp_name'] = temp_spec['temp_name']
 		
 		w_range = spectra[t_f_names[i]]['w_region']
@@ -845,6 +894,225 @@ def RChiS(x,y,yerr,func,params):
 	rchis=np.sum((y-func(x,*params))**2 / yerr**2 )/(x.size-params.size)
 
 	return rchis
+
+
+def region_select_pkl(target,template=None,tar_stretch=True,
+    temp_stretch=True,reverse=False,dk_wav='wav',dk_flux='flux'):
+	'''
+	An interactive function to plot target and template spectra
+	that allowing you to select useful regions with which to 
+	compute the broadening functions, ccfs, ect.
+
+	This funciton is meant for specrta in a pickled dictionary.
+
+	For this function to work properly the template and target 
+	spectrum have to have the same format, i.e. the same number 
+	of orders and roughly the same wavelength coverage. 
+
+	If a template spectrum is not specified, it will plot the 
+	target twice, where it can be nice to have one strethed 
+	and on not. 
+
+	Functionality:
+	The function brings up an interactive figure with the target 
+	on top and the template on bottom. hitting the 'm' key will 
+	mark wavelengths dotted red lines. The 'b' key will mark the 
+	start of a region with a solid black line and then the end of 
+	the region with a dashed black line. Regions should always go 
+	from small wavelengths to larger wavelengths, and regions 
+	should always close (.i.e., end with a dashed line). Hitting 
+	the return key over the terminal will advance to the next order
+	and it will print the region(s) you've created to the terminal
+	screen that are in the format that the saphires.io.read 
+	functions use. The regions from the previous order will show 
+	up as dotted black lines allowing you to create regions that 
+	do not overlap. 
+
+	Parameters
+	----------
+	target : str
+		File name for a pickled dictionary that has wavelength and 
+		flux arrays for the target spectrum with the header keywords 
+		defined in the dk_wav and dk_flux arguments.
+
+	template : str, None
+		File name for a pickled dictionary that has wavelength and 
+		flux arrays for the target spectrum with the header keywords 
+		defined in the dk_wav and dk_flux arguments. If None, the 
+		target spectrum will be plotted in both panels. 
+
+	tar_stretch : bool
+		Option to window y-axis of the target spectrum plot on the 
+		median with 50% above and below. This is useful for echelle 
+		data with noisey edges. The default is True.
+
+	temp_stretch ; bool
+		Option to window y-axis of the template spectrum plot on the 
+		median with 50% above and below. This is useful for echelle 
+		data with noisey edges.The default is True.
+
+	reverse : bool
+		This function works best when the orders are ordered with
+		ascending wavelength coverage. If this is not the case, 
+		this option will flip them. The default is False, i.e., no 
+		flip in the order.
+
+	dk_wav : str
+		Dictionary keyword for the wavelength array. Default is 'wav'
+
+	dk_flux : str
+		Dictionary keyword for the flux array. Default is 'flux'
+
+	Returns
+	-------
+	None
+
+	'''
+	l_range = []
+	
+	def press_key(event):
+		if event.key == 'b':
+			l_range.append(np.int(np.round(event.xdata,2)))
+
+			if (len(l_range)/2.0 % 1) != 0:
+				ax[0].axvline(event.xdata,ls='-',color='k')
+				ax[1].axvline(event.xdata,ls='-',color='k')
+			else:
+				ax[0].axvline(event.xdata,ls='--',color='k')
+				ax[1].axvline(event.xdata,ls='--',color='k')
+			plt.draw()
+
+			return l_range
+
+		if event.key == 'm':
+			ax[0].axvline(event.xdata,ls=':',color='r')
+			ax[1].axvline(event.xdata,ls=':',color='r')
+			plt.draw()
+
+			return
+
+	#----- Reading in and Formatiing ---------------	
+	if template == None:
+		template = copy.deepcop(target)
+
+	if py_version == 2:
+		tar = pkl.load(open(target,'rb'))
+		temp = pkl.load(open(template,'rb'))
+	if py_version == 3:
+		tar = pkl.load(open(target,'rb'),encoding='latin')
+		temp = pkl.load(open(template,'rb'),encoding='latin')
+
+	keys = list(tar.keys())
+
+	if dk_wav not in keys:
+		print("The wavelength array dictionary keyword specified, '"+dk_wav+"'")
+		print("was not found.")
+		return 0,0
+	if dk_flux not in keys:
+		print("The flux array dictionary keyword specified, '"+dk_flux+"'")
+		print("was not found.")
+		return 0,0
+
+	if (tar[dk_wav].ndim == 1):
+		order = 1
+
+	if (tar[dk_wav].ndim > 1):
+		order=tar[dk_wav].shape[0]
+	#-------------------------------------------------
+
+	plt.ion()
+
+	i = 0
+	while i < order:
+		if order > 1:
+			if reverse == True:
+				i_ind = order-1-i
+			if reverse == False:
+				i_ind = i
+		
+			flux = tar[dk_flux][i_ind]
+			w = tar[dk_wav][i_ind]
+			t_flux = temp[dk_flux][i_ind]
+			t_w = temp[dk_wav][i_ind]
+
+		else:
+			i_ind = i
+			flux = tar[dk_flux]
+			w = tar[dk_wav]
+			t_flux = temp[dk_flux]
+			t_w = temp[dk_wav]
+
+		#target
+		w = w[~np.isnan(flux)]
+		flux = flux[~np.isnan(flux)]
+
+		w = w[np.isfinite(flux)]
+		flux = flux[np.isfinite(flux)]
+
+		#template
+		t_w = t_w[~np.isnan(t_flux)]
+		t_flux = t_flux[~np.isnan(t_flux)]
+
+		t_w = t_w[np.isfinite(t_flux)]
+		t_flux = t_flux[np.isfinite(t_flux)]
+		
+		fig,ax=plt.subplots(2,sharex=True)
+
+		ax[0].set_title('Target - '+np.str(i_ind))
+		ax[0].plot(w,flux)
+		if len(l_range) > 0:
+			for j in range(len(l_range)):
+				ax[0].axvline(l_range[j],ls=':',color='red')
+		ax[0].set_ylabel('Flux')
+		if tar_stretch == True:
+			ax[0].axis([np.min(w),np.max(w),
+		    	       np.median(flux)-np.median(flux)*0.5,
+		        	   np.median(flux)+np.median(flux)*0.5])
+		ax[0].grid(b=True,which='both',axis='both')
+
+		ax[1].set_title('Template - '+np.str(i_ind))
+		ax[1].plot(t_w,t_flux)
+		if len(l_range) > 0:
+			for j in range(len(l_range)):
+				ax[1].axvline(l_range[j],ls=':',color='red')
+		ax[1].set_ylabel('Flux')
+		ax[1].set_xlabel('Wavelength')		
+		if ((t_flux.size > 0)&(temp_stretch==True)):
+			ax[1].axis([np.min(t_w),np.max(t_w),
+			            np.median(t_flux)-np.median(t_flux)*0.5,
+			            np.median(t_flux)+np.median(t_flux)*0.5])
+		ax[1].grid(b=True,which='both',axis='both')
+
+		plt.tight_layout()
+
+		l_range = []
+
+		cid = fig.canvas.mpl_connect('key_press_event',press_key)
+
+		wait = p_input('')
+
+		if wait != 'r':
+			i = i+1
+
+			if len(l_range) > 0:
+				out_range=''
+				for j in range(len(l_range)):
+					if j < len(l_range)-1:
+						if (j/2.0 % 1) != 0:
+							out_range=out_range+str(l_range[j])+','
+						if (j/2.0 % 1) == 0:
+							out_range=out_range+str(l_range[j])+'-'
+					if j == len(l_range)-1:
+						out_range=out_range+str(l_range[j])
+				print(target,i_ind,out_range)
+
+		fig.canvas.mpl_disconnect(cid)
+
+		plt.cla()
+
+		plt.close()
+        
+	return
 
 
 def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):

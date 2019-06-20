@@ -292,7 +292,7 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 				ax[1].set_xlabel('Secondary Velocity (km/s)')
 				ax[1].set_ylabel('Primary Velocity (km/s)')
 				cbar = plt.colorbar(cs,format="%3.2f",ax=ax[1])
-				ax[1].set_title('Flux Ratio ($\alpha$)')
+				ax[1].set_title(r'Flux Ratio ($\alpha$)')
 		
 			plt.tight_layout()
 			
@@ -392,9 +392,9 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			#ax.plot(c2_max,c1_max,'o',color='grey',label='Raw Max')
 			#ax.plot(rv2_imax,rv1_imax,'o',color='pink',label='Interp Max')
 
-			print('Guess:   ',vel_guess[1],vel_guess[0])
+			print('Guess:   ',vel_guess[0],vel_guess[1])
 			#print 'Raw Max: ',c2_max,c1_max
-			print('2D Gauss:',td_fit[1],td_fit[2])
+			print('2D Gauss:',td_fit[2],td_fit[1])
 			#print 'Quad:    ',rv2_q,rv1_q
 			#print 'Interp:  ',rv2_imax,rv1_imax
 
@@ -429,4 +429,7 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 	if text_out == True:
 		f.close()
 
+	plt.ioff()
 	return spectra
+
+

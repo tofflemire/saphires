@@ -145,9 +145,12 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 			continue
 
 		for j in range(inds.size):
-			bf_sols,sig=utils.bf_solve(des,u,ww,vt,spectra[t_f_names[inds[j]]]['vflux'],m)
+			bf_sols,sig = utils.bf_solve(des,u,ww,vt,spectra[t_f_names[inds[j]]]['vflux'],m)
+
+			vel = spectra[t_f_names[inds[j]]]['vel_spacing']*(np.arange(m)-m//2)
 
 			spectra[t_f_names[inds[j]]]['bf']=bf_sols[m-1]
+			spectra[t_f_names[inds[j]]]['vel']=vel
 
 	return spectra
 
@@ -276,8 +279,9 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 			v_smooth_sig = (2.9979*10**5)*(FWHM_lam/(2.0*np.sqrt(2.0*np.log(2.0))))/ord_center
 
 			bf_smooth = np.convolve(spectra[t_f_names[i]]['bf'],
-	        	                	py.gaussian(vel,(vel[1]-vel[0])/np.sqrt(2.0*np.pi*v_smooth_sig**2),
-	                	        				0,v_smooth_sig),mode='same')
+	        	                	utils.gaussian_off(vel,
+	        	                	                   (vel[1]-vel[0])/np.sqrt(2.0*np.pi*v_smooth_sig**2),
+	        	                	                   0,v_smooth_sig,0),mode='same')
 		else:
 			bf_smooth = spectra[t_f_names[i]]['bf']
 
@@ -327,7 +331,7 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 
 		if sb == "sb2":
 			if prof == 'g':
-				func=d_gaussian_off
+				func = utils.d_gaussian_off
 
 				bounds = ([0.01,rv_low,0.05,0.01,rv_low,0.05,-1],
 				          [np.inf,rv_high,80,np.inf,rv_high,80,1])
@@ -461,7 +465,7 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 				untils.bf_text_output(text_name_out,t_f_names[i],spectra[t_f_names[i]]['temp_name'],
 				               		  gs_fit_out,rchis,rv_weight,fit_int)
 	if single_plot == True:
-		bf_singleplot(t_f_names[t_f_ind],spectra,for_plotting,f_trim=fit_trim)
+		utils.bf_singleplot(t_f_names[t_f_ind],spectra,for_plotting,f_trim=fit_trim)
 
 	return spectra
 
