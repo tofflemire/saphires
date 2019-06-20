@@ -71,11 +71,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 
 	t_spectra : python dictionary
 		SAPHIRES dictionary for the science spectrum that has been prepared with 
-		the utils.prepare function with a template spectrum. If using different 
-		spectral templates (i.e. different temperatures/spectral types) this 
-		should generally be the hotter of the two. The flux ratio (alpha) assumes
-		this should be the brighter of the two, which in most cases is the hotter
-		star. 
+		the utils.prepare function with a template spectrum. 
 
 	vel_width : float
 		The range over which to compute the two-dimensional cross correlation.
@@ -89,7 +85,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 
 	Returns
     -------
-	spectra : dictionary
+	spectra : python dictionary
 		A python dictionary with the SAPHIRES architecture. The output dictionary
 		will have 2 new keywords as a result of this function. And is a copy of 
 		t_spec1.

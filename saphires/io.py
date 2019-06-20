@@ -64,10 +64,11 @@ if py_version == 2:
 #-14 - ['rv_shift'] 		- initial rv shift (used if you bf_compute_iter)		
 #-15 - ['order_flag'] 	- order flag											
 #16 - ['w_region_iter'] - iter wavelength region								
-#17 - ['ccf_fit_params']- fit paramters of CCF								
+#17 - ['ccf_fits']- fit paramters of CCF								
 #-18 - ['vel_spacing']  - velocity spaving of the vel array.
 #['tod_vals'] 
 #['tod_temps']
+#['ccf']
 
 #Template spectra
 #[0] - ['nflux'] native flux array (inverted)

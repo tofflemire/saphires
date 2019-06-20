@@ -51,6 +51,95 @@ if py_version == 2:
 	p_input = raw_input
 
 
+def apply_shift(t_f_names,t_spectra,rv_shift):
+	'''
+	A function to apply a velocity shift to an input spectrum.
+
+	The shift is made to the 'nflux' and 'nwave' arrays.
+
+	The convention may be a bit wierd, think of it like this:
+	If there is a feature at +40 km/s and you want that feature 
+	to be at zero velocity, put in 40. 
+
+	Whatever velocity you put in will be put to zero. 
+
+	The shifted velocity is stored in the 'rv_shift' header 
+	for each dictionary spectrum. Multiple shifts are stored
+	i.e. shifting by 40, and then 40 again will result in a
+	'rv_shift' value of 80. 
+
+	Parameters
+	----------
+    t_f_names: array-like
+		Array of keywords for a science spectrum SAPHIRES dictionary. Output of 
+		one of the saphires.io read-in functions.
+
+	t_spectra : python dictionary
+		SAPHIRES dictionary for the science spectrum.
+
+	rv_shift : float
+		The velocity (in km/s) you want centered at zero.
+
+	Returns
+	-------
+	spectra_out : python dictionary
+		A python dictionary with the SAPHIRES architecture. The output dictionary
+		will be a copy of t_specrta, but with updates to the following keywords.
+
+		['nwave']    - The shifted wavelength array
+		['nflux']    - The shifted flux array
+		['rv_shift'] - The value the spectrum was shifted in km/s
+
+	'''
+
+	spectra_out = copy.deepcopy(t_spectra)
+
+	for i in range(t_f_names.size):
+		w_unshifted = spectra_out[t_f_names[i]]['nwave']
+	
+		w_shifted=w_unshifted/(1-(-rv_shift/(2.997924*10**5)))
+		
+		f_shifted_f=interpolate.interp1d(w_shifted,spectra_out[t_f_names[i]]['nflux'])
+	
+		shift_trim = ((w_unshifted>=np.min(w_shifted))&(w_unshifted<=np.max(w_shifted)))
+	
+		w_unshifted = w_unshifted[shift_trim]
+	
+		spectra_out[t_f_names[i]]['nwave'] = w_unshifted
+	
+		f_out=f_shifted_f(w_unshifted)
+	
+		spectra_out[t_f_names[i]][nflux] = f_out
+
+		w_range = spectra_out[t_f_names[i]]['w_region']
+
+		if w_range != '*':
+			w_split = np.empty(0)
+			w_rc1 = w_range.split('-')
+			for j in range(len(w_rc1)):
+				for k in range(len(w_rc1[j].split(','))):
+					w_split = np.append(w_split,np.round(np.float(w_rc1[j].split(',')[k]),2))
+
+			w_split_shift = w_split/(1-(-rv_shift/(2.997924*10**5)))
+
+			w_range_shift = ''
+			for i in range(w_split_shift.size):
+				if (i/2.0 % 1) == 0: #even
+					w_range_shift = np.str(w_split_shift[i])+'-'
+				if (i/2.0 % 1) != 0: #odd
+					w_range_shift = np.str(w_split_shift[i])+','
+
+			if w_range_shift[-1] == ',':
+				w_range_shift = w_range_shift[:-1]
+	
+			spectra_out[t_f_names[i]]['w_range'] = w_range_shift
+
+		spectra_out[t_f_names[i]]['rv_shift'] = spectra_out[t_f_names[i]]['rv_shift'] + rv_shift
+
+	return spectra_out
+
+
+
 def bf_map(template,m):
     '''
     Creates a two dimensional array from a template by shifting one unit
