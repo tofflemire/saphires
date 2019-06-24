@@ -50,7 +50,6 @@ if py_version == 2:
 	nplts = 'S' #the numpy letter for a string
 	p_input = raw_input
 
-
 def apply_shift(t_f_names,t_spectra,rv_shift):
 	'''
 	A function to apply a velocity shift to an input spectrum.
@@ -109,7 +108,7 @@ def apply_shift(t_f_names,t_spectra,rv_shift):
 	
 		f_out=f_shifted_f(w_unshifted)
 	
-		spectra_out[t_f_names[i]][nflux] = f_out
+		spectra_out[t_f_names[i]]['nflux'] = f_out
 
 		w_range = spectra_out[t_f_names[i]]['w_region']
 
@@ -118,26 +117,25 @@ def apply_shift(t_f_names,t_spectra,rv_shift):
 			w_rc1 = w_range.split('-')
 			for j in range(len(w_rc1)):
 				for k in range(len(w_rc1[j].split(','))):
-					w_split = np.append(w_split,np.round(np.float(w_rc1[j].split(',')[k]),2))
+					w_split = np.append(w_split,np.float(w_rc1[j].split(',')[k]))
 
 			w_split_shift = w_split/(1-(-rv_shift/(2.997924*10**5)))
 
 			w_range_shift = ''
-			for i in range(w_split_shift.size):
-				if (i/2.0 % 1) == 0: #even
-					w_range_shift = np.str(w_split_shift[i])+'-'
-				if (i/2.0 % 1) != 0: #odd
-					w_range_shift = np.str(w_split_shift[i])+','
+			for j in range(w_split_shift.size):
+				if (j/2.0 % 1) == 0: #even
+					w_range_shift = w_range_shift + np.str(np.round(w_split_shift[j],2))+'-'
+				if (j/2.0 % 1) != 0: #odd
+					w_range_shift = w_range_shift + np.str(np.round(w_split_shift[j],2))+','
 
 			if w_range_shift[-1] == ',':
 				w_range_shift = w_range_shift[:-1]
 	
-			spectra_out[t_f_names[i]]['w_range'] = w_range_shift
+			spectra_out[t_f_names[i]]['w_region'] = w_range_shift
 
 		spectra_out[t_f_names[i]]['rv_shift'] = spectra_out[t_f_names[i]]['rv_shift'] + rv_shift
 
 	return spectra_out
-
 
 
 def bf_map(template,m):
@@ -261,7 +259,8 @@ def bf_singleplot(t_f_names,t_spectra,for_plotting,f_trim=20):
 		                                         gs_fit[8],gs_fit[9]),
 					lw=2,ls='--',color='g',
 					label='Amp3: '+np.str(np.round(gs_fit[6]*gs_fit[8]*np.sqrt(2.0*np.pi),3)))
-
+			ax.legend()
+			
 		if gs_fit.size == 7:
 			#if func == gauss_rot_off:
 			#	ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
@@ -288,11 +287,11 @@ def bf_singleplot(t_f_names,t_spectra,for_plotting,f_trim=20):
 		    	                                     gs_fit[5],gs_fit[6]),
 						lw=2,ls='--',color='r',
 						label='Amp2: '+np.str(np.round(gs_fit[3]*gs_fit[5]*np.sqrt(2.0*np.pi),3)))
-
+			ax.legend()
 
 		ax.plot(vel[f_trim:-f_trim],func(vel[f_trim:-f_trim],*gs_fit),
 	        	lw=1,ls='-',color='k')
-		ax.legend()
+		
 		plt.tight_layout(pad=0.4)
 		pp.savefig()
 		plt.close()
@@ -1201,6 +1200,161 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 
 		plt.close()
         
+	return
+
+
+def region_select_vars(w,f,tar_stretch=True,reverse=False):
+	'''
+	An interactive function to plot spectra that allowing you 
+	to select useful regions with which to compute the 
+	broadening functions, ccfs, ect.
+
+	Functionality:
+	The function brings up an interactive figure with spectra. 
+	Hitting the 'm' key will mark wavelengths with dotted red 
+	lines. The 'b' key will mark the start of a region with a 
+	solid black line and then the end of the region with a 
+	dashed black line. Regions should always go from small 
+	wavelengths to larger wavelengths, and regions should always 
+	close (.i.e., end with a dashed line). Hitting the return 
+	key over the terminal will advance to the next order and it 
+	will print the region(s) you've created to the terminal
+	screen that are in the format that the saphires.io.read_vars 
+	function can use. The regions from the previous order will 
+	show up as dotted black lines allowing you to create regions 
+	that do not overlap. 
+
+	Parameters
+	----------
+	w : array-like
+		Wavelength array assumed to be in Angstroms.
+
+	tar_stretch : bool
+		Option to window y-axis of the spectrum plot on the 
+		median with 50% above and below. This is useful for echelle 
+		data with noisey edges. The default is True.
+
+	reverse : bool
+		This function works best when the orders are ordered with
+		ascending wavelength coverage. If this is not the case, 
+		this option will flip them. The default is False, i.e., no 
+		flip in the order.
+
+	Returns
+	-------
+	None
+
+	'''
+	l_range = []
+	
+	def press_key(event):
+		if event.key == 'b':
+			l_range.append(np.round(event.xdata,2))
+
+			if (len(l_range)/2.0 % 1) != 0:
+				ax[0].axvline(event.xdata,ls='-',color='k')
+				ax[1].axvline(event.xdata,ls='-',color='k')
+			else:
+				ax[0].axvline(event.xdata,ls='--',color='k')
+				ax[1].axvline(event.xdata,ls='--',color='k')
+			plt.draw()
+
+			return l_range
+
+		if event.key == 'm':
+			ax[0].axvline(event.xdata,ls=':',color='r')
+			ax[1].axvline(event.xdata,ls=':',color='r')
+			plt.draw()
+
+			return
+
+	#----- Reading in and Formatiing ---------------	
+	if (w.ndim == 1):
+		order = 1
+
+	if (w.ndim > 1):
+		order=w.shape[0]
+	#-------------------------------------------------
+
+	plt.ion()
+
+	i = 0
+	while i < order:
+		if order > 1:
+			if reverse == True:
+				i_ind = order-1-i
+			if reverse == False:
+				i_ind = i
+		
+			flux_plot = f[i_ind]
+			w_plot = w[i_ind]
+
+		else:
+			i_ind = i
+			flux_plot = f
+			w_plot = w
+
+		#target
+		w_plot = w_plot[~np.isnan(flux_plot)]
+		flux_plot = flux_plot[~np.isnan(flux_plot)]
+
+		w_plot = w_plot[np.isfinite(flux_plot)]
+		flux_plot = flux_plot[np.isfinite(flux_plot)]
+
+		fig,ax=plt.subplots(2,sharex=True)
+
+		ax[0].set_title('Target - '+np.str(i_ind))
+		ax[0].plot(w_plot,flux_plot)
+		if len(l_range) > 0:
+			for j in range(len(l_range)):
+				ax[0].axvline(l_range[j],ls=':',color='red')
+		ax[0].set_ylabel('Flux')
+		if tar_stretch == True:
+			ax[0].axis([np.min(w_plot),np.max(w_plot),
+		    	       np.median(flux_plot)-np.median(flux_plot)*0.5,
+		        	   np.median(flux_plot)+np.median(flux_plot)*0.5])
+		ax[0].grid(b=True,which='both',axis='both')
+
+		ax[1].plot(w_plot,flux_plot)
+		if len(l_range) > 0:
+			for j in range(len(l_range)):
+				ax[1].axvline(l_range[j],ls=':',color='red')
+		ax[1].set_ylabel('Flux')
+		ax[1].set_xlabel('Wavelength')		
+
+		ax[1].grid(b=True,which='both',axis='both')
+
+		plt.tight_layout()
+
+		l_range = []
+
+		cid = fig.canvas.mpl_connect('key_press_event',press_key)
+
+		wait = p_input('')
+
+		if wait != 'r':
+			i = i+1
+
+			if len(l_range) > 0:
+				out_range=''
+				for j in range(len(l_range)):
+					if j < len(l_range)-1:
+						if (j/2.0 % 1) != 0:
+							out_range=out_range+str(l_range[j])+','
+						if (j/2.0 % 1) == 0:
+							out_range=out_range+str(l_range[j])+'-'
+					if j == len(l_range)-1:
+						out_range=out_range+str(l_range[j])
+				print(i_ind,out_range)
+
+		fig.canvas.mpl_disconnect(cid)
+
+		plt.cla()
+
+		plt.close()
+        
+	plt.ioff()
+
 	return
 
 

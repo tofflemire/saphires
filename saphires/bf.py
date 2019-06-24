@@ -247,11 +247,19 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 
 		['bf_smooth'] - BF smoothed by the input spectral resolution
 		['bf_fits']   - Profile fit parameters to the BF. For every profile fit there 
-						will be 4 elements that are orders as follows:
-						amplitude, center, width, vertical offset.
+						will be 3 elements that are orders as follows: amplitude, center, 
+						width, and then a single  shared vertical offset.
 						The details for what these parameters correspond to depend on the 
-						profile being fit and are provided in the prof keyword desctiption
+						profile being fit and are provided in the prof keyword description
 						above. 
+						Note that if you have shifted the spectra, these values correpsond
+						to the fit to the shifted specrtum, they are unaware of any shifts 
+						that have been made.
+		['bf_rv']     - The rv values that have had any rv shift added back in. If you have 
+						not shifted the spectra, these values will be the same as those 
+						contained in the 'bf_fits' array. For sb2's or sb3's the rv are 
+						ordered by the integral of their profile, which should correspond to
+						the primary, seceondary, then tertiary. 
 
 	'''
 	spectra = copy.deepcopy(t_spectra)
@@ -342,6 +350,9 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 				fit_int = np.array([gs_fit[0]*gs_fit[2]*np.sqrt(2*np.pi),
 				                   gs_fit[3]*gs_fit[5]*np.sqrt(2*np.pi)])
 
+				rv = np.array([gs_fit[1],gs_fit[4]])[np.argsort(fit_int)][::-1]
+				#rv=gs_fit[np.where(gs_fit == np.max([gs_fit[0],gs_fit[3]]))[0][0]+1]
+
 			#if prof == 'r':
 			#	func=d_rot_pro
 			#	if p_rv == False:
@@ -400,7 +411,7 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 			            	  np.std(bf_smooth[fit_trim:-fit_trim]),
 			            	  func,gs_fit)
 
-			rv=gs_fit[np.where(gs_fit == np.max([gs_fit[0],gs_fit[3]]))[0][0]+1]
+			
 
 		if sb == "sb3":
 			func=t_gaussian_off
@@ -420,14 +431,13 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 				                gs_fit[3]*gs_fit[5]*np.sqrt(2*np.pi),
 				                gs_fit[6]*gs_fit[8]*np.sqrt(2*np.pi)])
 
+			rv = np.array([gs_fit[1],gs_fit[4],gs_fit[7]])[np.argsort(fit_int)][::-1]
+
 			rchis=untils.RChiS(vel[fit_trim:-fit_trim],
 			            	   bf_smooth[fit_trim:-fit_trim],
 			            	   np.zeros(bf_smooth[fit_trim:-fit_trim].size)+
 			            	   np.std(bf_smooth[fit_trim:-fit_trim]),
 			            	   func,gs_fit)
-
-			rv=gs_fit[np.where(gs_fit == np.max([gs_fit[0],gs_fit[3],
-			                                     gs_fit[6]]))[0][0]+1]
 
 		for_plotting[t_f_names[i]]=[bf_smooth]
 		for_plotting[t_f_names[i]].append(func)
@@ -435,6 +445,8 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 
 		spectra[t_f_names[i]]['bf_smooth'] = bf_smooth
 		spectra[t_f_names[i]]['bf_fits'] = gs_fit
+		spectra[t_f_names[i]]['bf_rv'] = rv+spectra[t_f_names[i]]['rv_shift']
+
 
 		if text_out == True:
 			gs_fit_out = copy.deepcopy(gs_fit)

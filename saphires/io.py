@@ -80,9 +80,9 @@ if py_version == 2:
 def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
     trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
 	'''
-	A function to read in a target spectrum, or list of target spectra, from 
-	a pickle dictionary with specific keywords, and put them into the 
-	SAPHIRES data structure.
+	A function to read in a target spectrum, list of target spectra, or 
+	template spectrum from a pickle dictionary with specific keywords, and 
+	put them into the SAPHIRES data structure.
 	
 	Required Keywords:
 	- Wavelength array keyword is specified by the dk_wav paramter. It must
@@ -92,9 +92,9 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 	  contain flux values corresponding to the wavelength array(s).
 	Both must have the same dimenisionality and length
 	
-	The "data structure" is nothing special, just a set of nested dictionaries,
-	but it is a simple way to keep all of the relevant information in one place
-	that is, hopefully, straight forward. 
+	The SAPHIRES "data structure" is nothing special, just a set of nested 
+	dictionaries, but it is a simple way to keep all of the relevant 
+	nformation in one place that is, hopefully, straight forward. 
 
 	The returned data structure has two parts:
 	1) A list of dictionary keywords. They have the following form:
@@ -382,9 +382,9 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
     norm_w_width=200.0,trim_style='clip'):
 	'''
-	A function to read in a target spectrum, or list of target spectra, from 
-	an IRAF friendly fits file with a single order, and put them into the 
-	SAPHIRES data structure.
+	A function to read in a target spectrum, list of target spectra, or a 
+	template spectrum from an IRAF friendly fits file with a single order, 
+	and put them into the SAPHIRES data structure.
 
 	IRAF friendly in this context means that the fits file contrains a flux 
 	array and the headers have keywords CRVAL1, CDELT1, and potentially, LTV1,
@@ -642,9 +642,9 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
     norm_w_width=200.0,trim_style='clip',header_wave=False):
 	'''
-	A function to read in a target spectrum, or list of target spectra, from 
-	an IRAF friendly multi-extension fits file, and put them into the 
-	SAPHIRES data structure.
+	A function to read in a target spectrum, list of target spectra, or a
+	template spectrum from an IRAF friendly multi-extension fits file, and 
+	put them into the SAPHIRES data structure.
 
 	IRAF friendly in this context means that the fits file contrains a flux 
 	arrays and the headers have 'WAT2' keywords that define the wavelength array. 
@@ -945,8 +945,273 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 	return t_f_names_out,t_spectra
 
 
+def read_vars(w,f,name,w_file=None,temp=False,combine_all=True,norm=True,w_mult=1.0,
+    trim_style='clip',norm_w_width=200.0):
+	'''
+	A function to read in a target spectrum or template spectrum from 
+	predefined python arrays and put them into the SAPHIRES data structure.
+	
+	Arrays can be single or multi-order. Wavelength and flux arrays have to 
+	have the same dimensionallity and length.
+
+	The "data structure" is nothing special, just a set of nested dictionaries,
+	but it is a simple way to keep all of the relevant information in one place
+	that is, hopefully, straight forward. 
+
+	The returned data structure has two parts:
+	1) A list of dictionary keywords. They have the following form:
+	   "file_name[order][wavelength range]"
+	2) A dictionary. For each of the keywords above there is a nested
+	   dictionary with the following form:
+	   ['nflux'] 		- native flux array (inverted)
+	   ['nwave'] 		- native wavelength array
+	   ['ndw'] 			- native wavelength spacing
+	   ['wav_cent'] 	- order central wavelength
+	   ['w_region'] 	- wavelength region
+	   ['rv_shift'] 	- initial rv shift
+	   ['order_flag'] 	- order flag	
+
+	If you specify that you are reading in a template, there will only be
+	a dictionary with the following keywords (it is not nested with spectral
+	order descriptions):
+	   ['nflux'] 		- native flux array (inverted)
+	   ['nwave'] 		- native wavelength array
+	   ['ndw'] 			- native wavelength spacing
+	   ['wav_cent'] 	- order central wavelength
+	   ['w_region'] 	- wavelength region
+	   ['temp_name'] 	- template file name
+	
+	Additional keywords and data are added to the nested dictionaries by 
+	other SAPHIRES functions, e.g.:
+	['vflux'] 		- resampled flux array (inverted)					
+	['vwave'] 		- resampled wavelength array							
+	['vflux_temp'] 	- resampled template flux array (inverted)			
+	['vel'] 		- velocity array to be used with the BF or CCF		
+	['temp_name'] 	- template name										
+	['bf'] 			- broadening funciton								
+	['bf_smooth']	- smoothed broadening function 						
+	['bf_fits'] 	- gaussian fit parameters							
+	More details on these are provided in other various functions. 
+
+	Many of the spectral analysis techniques (cross correlation, broadening 
+	function, etc) work with a inverted spectrum, i.e. the continuum is at
+	zero and absorption lines extend upward - so all of the flux arrays are 
+	inverted in this way.
+
+	Parameters
+    ----------
+	w : array-like
+		Wavelength array, assumed be in Angstroms. If not use the w_mult 
+		keyword below.
+
+	f : array-like
+		Flux array.
+
+	name : str 
+		The name of the spectrum. 
+
+	w_file : str, None
+		Name of a text file contain wavelength regions that correspond to the 
+		input arrays. The file must have the following format:
+		order wavelength_range
+		Some examples:
+		  0 * 
+		  - (single order array; reads in the entire wavelenth range as one 
+		  	order)
+		  0 5200-5300,5350-5400
+		  0 5400-5600
+		  - (single order array; splits the single wavelength array in to two 
+		  	"orders" that are each 200 A wide. The first has a 50 A gap.)
+		  0 *
+		  1 5200-5300,5350-5400
+		  - (multi-order array; reads in the entiresy of the first order and 
+		    a portion of the second order.)
+		  Notes on wavelength_range: 
+		  	Must have the general form "w1-w2,w3-w4" where '-' symbols 
+		  	includes the wavelength region, ',' symbols excludes them. There 
+		  	can be as many regions as you want, as long as it ends with an
+		  	inclusive region (i.e. cannot end with a comma or dash). 
+		  	Wavelength values must ascend left to right. 
+		I would highly recommend using the specified wavelength regions. 
+		There will inevitably be a part of the spectrum (edge effect, CR,
+		intrinsic emission line) that you don't want to include in your
+		calculation. And, if you remove overlapping regions, you can set the
+		'combine_all' parameter to True to create a stiched order, which can 
+		be useful.
+
+	temp : bool
+		Tell the function whether this is a template spectrum. Science and 
+		template spectra have slightly different formats, namely, that 
+		template spectra are not nested dictionaries with keywords that 
+		describe spectral orders -- they are just a standard dictionary.
+		When this parameter is True, only a dictionary is output, without 
+		an array of header keywords. 
+		Both cases read in data in the same way.
+		The default value is False.
+
+	combine_all : bool
+		Option to stitch together all spectral orders. This is useful generally,
+		but especially for low-S/N spectra where any given order could give you 
+		BF or CCF results that are trash. The default value is 'True'.
+		IMPORTANT NOTE: Spectra are currently stitched in the simplist way 
+		possible. Use the defined spectral windows capabilties of the 
+		'spectra_list' parameter to avoid overlapping regions from order to 
+		order. 
+
+	norm : bool
+		Option to continuum normalize the input spectrum. Default is True.
+
+	norm_w_width : float
+		If the 'norm' paramter is 'True', the parameter set the width of the
+		normalization window. The default is 200 Angstroms, which does a 
+		decent job in a variety of situtaions. 
+
+	w_mult : float
+		Value to multiply the wavelength array. This is used to convert the 
+		input wavelength array to Angstroms if it is not already. The default 
+		is 1, assuming the wavelength array is alreay in Angstroms. 
+
+	trim_style : str, options: 'clip', 'lin', 'spl'
+		If a wavelength region file is input in the 'spectra_list' parameter, 
+		this parameter describes how gaps are dealt with. 
+		- If 'clip', unused regions will be left as gaps.
+		- If 'lin', unused regions will be linearly interpolated over.
+		- If 'spl', unused regions will be interpolated over with a cubic 
+		  spline. You probably don't want to use this one.
+		
+    Returns
+    -------
+	tar : array-like
+		List of dictionary keywords, described above.
+
+	tar_spec : dictionary
+		SAPHIRES dictionary, described above. 
+	'''
+
+	if w_file != None:
+		order,w_range = np.loadtxt(w_file,unpack=True,
+		                           dtype='i,'+nplts+'10000')
+		wave_reg = True
+
+	if w_file == None:
+		order = np.array([0])
+		w_range = np.array(['*'])
+		wave_reg = False
+
+	#Dictionary for output spectra
+	t_spectra={}
+
+	t_f_names_out=np.empty(0,dtype=nplts+'100')
 
 
+	if (w.ndim == 1) & (wave_reg == False):
+		n_orders = 1
+
+	if (w.ndim == 1) & (wave_reg == True):
+		n_orders = order.size
+
+	if (w.ndim > 1) & (wave_reg == False):
+		n_orders=w.shape[0]
+
+	if (w.ndim > 1) & (wave_reg == True):
+		n_orders = order.size
+
+	for j in range(n_orders):
+		if wave_reg == True:
+			j_ind=order[j]
+		if wave_reg == False:
+			j_ind = j
+
+		if w.ndim == 1:
+			t_flux = f
+			t_w = w
+		else:
+			t_flux = f[j_ind]
+			t_w = w[j_ind]
+
+		if wave_reg == False:
+			w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+		if wave_reg == True:
+			if w_range[j] == '*':
+				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+			else:
+				w_range_out = w_range[j]
+
+		t_w = t_w*w_mult
+
+		t_w, t_flux = utils.spec_trim(t_w,t_flux,w_range_out,'*',trim_style=trim_style)
+	
+		#get rid of nans
+		t_w=t_w[~np.isnan(t_flux)]
+		t_flux=t_flux[~np.isnan(t_flux)]
+
+		if norm == True:
+			t_flux = t_flux / np.median(t_flux)
+			t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
+
+		t_flux = 1.0 - t_flux
+
+		w_min=np.int(np.min(t_w))
+		w_max=np.int(np.max(t_w))
+
+		t_dw = np.median(t_w - np.roll(t_w,1))
+
+		t_f_names_out=np.append(t_f_names_out,
+		                        name+'['+np.str(j_ind)+']['+np.str(w_min)+'-'+
+		                        np.str(w_max)+']')
+
+		t_spectra[t_f_names_out[-1]]={'nflux': t_flux,
+									  'nwave': t_w,
+									  'ndw': t_dw,
+									  'wav_cent': np.mean(t_w),
+									  'w_region': w_range_out,
+									  'rv_shift': 0.0,
+									  'order_flag': 1}
+
+	if ((combine_all == True) | (temp == True)):
+		w_all = np.empty(0)
+		flux_all = np.empty(0)
+
+		for i in range(t_f_names_out.size):
+			w_all = np.append(w_all,t_spectra[t_f_names_out[i]]['nwave'])
+			flux_all = np.append(flux_all,t_spectra[t_f_names_out[i]]['nflux'])
+			
+			if t_f_names_out.size > 1:
+				if i == 0:
+					w_range_all = t_spectra[t_f_names_out[i]]['w_region']+','
+				if ((i > 0) & (i<t_f_names_out.size-1)):
+					w_range_all = w_range_all+t_spectra[t_f_names_out[i]]['w_region']+','
+				if i == t_f_names_out.size-1:
+					w_range_all = w_range_all+t_spectra[t_f_names_out[i]]['w_region']
+			if t_f_names_out.size == 1:
+					w_range_all = t_spectra[t_f_names_out[i]]['w_region']
+
+		w_min=np.int(np.min(w_all))
+		w_max=np.int(np.max(w_all))
+
+		t_dw = np.median(w_all - np.roll(w_all,1))
+
+		t_spectra['Combined']={'nflux': flux_all,
+							   'nwave': w_all,
+							   'ndw': t_dw,
+							   'wav_cent': np.mean(w_all),
+							   'w_region': w_range_all,
+							   'rv_shift': 0.0,
+							   'order_flag': 1}
+
+		t_f_names_out=np.append(t_f_names_out,'Combined')
+
+	if temp == True:
+		temp_spectra={'nflux': flux_all,
+					  'nwave': w_all,
+					  'ndw': t_dw,
+					  'wav_cent': np.mean(w_all),
+					  'w_region': w_range_all,
+					  'temp_name': name}
+		return temp_spectra
+
+	return t_f_names_out,t_spectra
+	
 
 
 

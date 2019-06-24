@@ -177,7 +177,11 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		t_spec1.
 
 		['tod_vals']  - An array with the results of the todcor fit:
-					    RV1, RV2, flux ratio, TODCOR peak height
+					    RV1, RV2, flux ratio, TODCOR peak height.
+					    Note that if you have applied a shift to your spectra 
+					    with saphires.utils.apply_shift, that shift is not 
+					    accounted for here -- these values are unaware of any 
+					    shifts. 
 		['tod_temps'] - The names of the templates used when running TODCOR
 	'''
 
@@ -271,7 +275,6 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		if guess == False:
 			plt.ion()
 
-			print('Make sure you are in an ipython session.')
 			vel_guess=[]
 
 			fig,ax = plt.subplots(2,sharex=True,sharey=True)
