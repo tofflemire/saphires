@@ -483,7 +483,7 @@ def bf_text_output(ofname,target,template,gs_fit,rchis,rv_weight,fit_int):
 	return
 
 
-def cont_norm(w,f,w_width=200.0):
+def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3):
 	'''
 	Continuum normalizes a spectrum
 
@@ -501,9 +501,11 @@ def cont_norm(w,f,w_width=200.0):
 	w : array-like
 		Wavelength array of the spectrum to be normalized.
 		Assumed to be angstroms, but doesn't really matter.
+	
 	f : array-like
 		Flux array of the spectrum to be normalized.
 		Assumes linear flux units.
+	
 	w_width : number
 		Width is the spline fitting window. This is useful for
 		long, stitched spectra where is doesn't makse sense to 
@@ -511,6 +513,20 @@ def cont_norm(w,f,w_width=200.0):
 		The defaults is 200 A, which seems to work reasonably well.
 		Assumes angstroms but will naturally be on the same scale 
 		as the wavelength array, w.
+
+	maxiter : int
+		Number of interations. The default is 15.
+
+	lower : float 
+		Lower limit in units of sigmas for including data in the 
+		spline interpolation. The default is 0.3.
+
+	upper : float
+		Upper limit in units of sigma for including data in the 
+		spline interpolation. The default is 2.0.
+
+	nord : int
+		Order of the spline. The defatul is 3.
 
 	Returns
 	-------
@@ -521,9 +537,9 @@ def cont_norm(w,f,w_width=200.0):
 	norm_space = w_width/(w[1]-w[0])
 
 	x = np.arange(f.size,dtype=float)
-	spl = bspl.iterfit(x, f, maxiter = 15, lower = 0.3, 
-	                   upper = 2.0, bkspace = norm_space, 
-	      	           nord = 3 )[0]
+	spl = bspl.iterfit(x, f, maxiter = maxiter, lower = lower, 
+	                   upper = upper, bkspace = norm_space, 
+	      	           nord = nord )[0]
 	cont = spl.value(x)[0]
 	f_norm = f/cont
 
