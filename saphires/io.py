@@ -1212,19 +1212,3 @@ def read_vars(w,f,name,w_file=None,temp=False,combine_all=True,norm=True,w_mult=
 
 	return t_f_names_out,t_spectra
 	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

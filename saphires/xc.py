@@ -238,11 +238,11 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			spectra[t_f_names[i]]['order_flag'] = 0
 			continue
 
-		c1,c1_v = utils.u_ccf(f_s,f_t1,m,v_spacing1) # The Primary CCF
+		c1,c1_v = utils.spec_ccf(f_s,f_t1,m,v_spacing1) # The Primary CCF
 	
-		c2,c2_v = utils.u_ccf(f_s,f_t2,m,v_spacing1) # The Secondary CCF
+		c2,c2_v = utils.spec_ccf(f_s,f_t2,m,v_spacing1) # The Secondary CCF
 	
-		c12,c12_v = utils.u_ccf(f_t1,f_t2,m*2+1,v_spacing1) # The Primary v Secondary CCF
+		c12,c12_v = utils.spec_ccf(f_t1,f_t2,m*2+1,v_spacing1) # The Primary v Secondary CCF
 	
 		#This statement works when alpha_fit is given a float
 		if type(alpha_fit) == float:

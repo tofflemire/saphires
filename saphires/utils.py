@@ -50,6 +50,34 @@ if py_version == 2:
 	nplts = 'S' #the numpy letter for a string
 	p_input = raw_input
 
+
+def air2vac(w_air):
+	'''
+	Air to vacuum conversion formula derived by N. Piskunov
+	IAU standard:
+	http://www.astro.uu.se/valdwiki/Air-to-vacuum%20conversion
+
+	Parameters
+	----------
+	w_air : array-like
+		Array of air wavelengths assumed to be in Angstroms
+
+	Returns
+	-------
+	w_vac : array-like
+		Array of vacuum wavelengths converted from w_air
+	'''
+
+	s = 10**4/w_air
+
+	n = (1 + 0.00008336624212083 + 0.02408926869968 / (130.1065924522 - s**2) + 
+	     0.0001599740894897 / (38.92568793293 - s**2))
+
+	w_vac = w_air*n
+
+	return w_vac
+
+
 def apply_shift(t_f_names,t_spectra,rv_shift):
 	'''
 	A function to apply a velocity shift to an input spectrum.
@@ -1521,6 +1549,79 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 	return w_tar,f
 
 
+def spec_ccf(f_s,f_t,m,v_spacing):
+	'''
+	This is the "under the hood" cross correlation function
+	called by xc.todcor and xc.ccf.
+
+	If you are looking for a ccf that plays nice with the
+	SAPHIRES dictionaties, use xc.ccf.
+
+	CCF Specifics: In this implementation, the cross correlation
+	at each point is normalized by the number of flux array values 
+	that went into that point, NOT the total number of point in the 
+	array. This makes the most sense to me, but most formulae you 
+	find do not do this.
+
+	Parameters
+	----------
+	f_s: array-like
+		Input flux array from the science spectrum. Array assumes
+		that the corresponding wavelength array is spaced 
+		logarithmicly, i.e. in linear velocity spacing, and are 
+		continuum normalized and inverted. 
+
+	f_t: array-like
+		Input flux array from the template spectrum. Array assumes
+		that the corresponding wavelength array is spaced 
+		logarithmicly, i.e. in linear velocity spacing, and are 
+		continuum normalized and inverted. 
+
+	m : int
+		Number of units in velocity space with which to compute the 
+		cross correlation, must be an odd number. 
+
+	v_spacing : float
+		The velocity spacing of the input flux arrays -- must be the 
+		same between them.
+
+	Returns
+	-------
+	ccf : array-like
+		The computed cross correlation function
+
+	ccf_v : array-like
+		The velcoity that corresponds to each cross correaltion value
+		above. 
+
+	'''
+	if (m/2.0 % 1) == 0:
+		m=m-1
+		print('Subtracting 1 from m because it is even.')
+
+	f_s_ccf = f_s / np.std(f_s)
+	f_s_ccf = f_s_ccf - np.mean(f_s_ccf)
+
+	f_t_ccf = f_t / np.std(f_t)
+	f_t_ccf = f_t_ccf - np.mean(f_t_ccf)
+
+	ccf = np.zeros(m)
+	for i in range(m):
+		ccf_i = i-(m-1)//2
+		if ccf_i < 0:
+			ccf[i] = (np.sum( f_s_ccf[:ccf_i] * 
+			                 np.roll(f_t_ccf,ccf_i)[:ccf_i] ) / 
+			          np.float(f_s_ccf[:ccf_i].size))
+		if ccf_i >=0:
+			ccf[i] = (np.sum( f_s_ccf[ccf_i:] * 
+			                 np.roll(f_t_ccf,ccf_i)[ccf_i:] ) / 
+					  np.float(f_s_ccf[ccf_i:].size))
+
+	ccf_v = (np.arange(ccf.size)-(ccf.size-1)//2)*v_spacing
+
+	return ccf,ccf_v
+
+
 def td_gaussian(xy_ins, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 	'''
 	A two-dimensional gaussian fuction, that is tailored to fitting data.
@@ -1579,76 +1680,31 @@ def td_gaussian(xy_ins, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 	return z
 
 
-def u_ccf(f_s,f_t,m,v_spacing):
+def vac2air(w_vac):
 	'''
-	This is the "under the hood" cross correlation function
-	called by xc.todcor and xc.ccf.
-
-	If you are looking for a ccf that plays nice with the
-	SAPHIRES dictionaties, use xc.ccf.
-
-	CCF Specifics: In this implementation, the cross correlation
-	at each point is normalized by the number of flux array values 
-	that went into that point, NOT the total number of point in the 
-	array. This makes the most sense to me, but most formulae you 
-	find do not do this.
+	Vacuum to air conversion formula from Donald Morton 
+	(2000, ApJ. Suppl., 130, 403) is used for the refraction index, 
+	which is also the IAU standard:
+	http://www.astro.uu.se/valdwiki/Air-to-vacuum%20conversion
 
 	Parameters
 	----------
-	f_s: array-like
-		Input flux array from the science spectrum. Array assumes
-		that the corresponding wavelength array is spaced 
-		logarithmicly, i.e. in linear velocity spacing. 
-
-	f_t: array-like
-		Input flux array from the template spectrum. Array assumes
-		that the corresponding wavelength array is spaced 
-		logarithmicly, i.e. in linear velocity spacing.
-
-	m : int
-		Number of units in velocity space with which to compute the 
-		cross correlation, must be an odd number. 
-
-	v_spacing : float
-		The velocity spacing of the input flux arrays -- must be the 
-		same between them.
+	w_vac : array-like
+		Array of vacuum wavelengths assumed to be in Angstroms
 
 	Returns
 	-------
-	ccf : array-like
-		The computed cross correlation function
-
-	ccf_v : array-like
-		The velcoity that corresponds to each cross correaltion value
-		above. 
-
+	w_air : array-like
+		Array of air wavelengths converted from w_vac
 	'''
-	if (m/2.0 % 1) == 0:
-		m=m-1
-		print('Subtracting 1 from m because it is even.')
 
-	f_s_ccf = f_s / np.std(f_s)
-	f_s_ccf = f_s_ccf - np.mean(f_s_ccf)
+	s = 10**4/w_vac
 
-	f_t_ccf = f_t / np.std(f_t)
-	f_t_ccf = f_t_ccf - np.mean(f_t_ccf)
+	n = 1 + 0.0000834254 + 0.02406147 / (130 - s**2) + 0.00015998 / (38.9 - s**2)
 
-	ccf = np.zeros(m)
-	for i in range(m):
-		ccf_i = i-(m-1)//2
-		if ccf_i < 0:
-			ccf[i] = (np.sum( f_s_ccf[:ccf_i] * 
-			                 np.roll(f_t_ccf,ccf_i)[:ccf_i] ) / 
-			          np.float(f_s_ccf[:ccf_i].size))
-		if ccf_i >=0:
-			ccf[i] = (np.sum( f_s_ccf[ccf_i:] * 
-			                 np.roll(f_t_ccf,ccf_i)[ccf_i:] ) / 
-					  np.float(f_s_ccf[ccf_i:].size))
+	w_air = w_vac/n
 
-	ccf_v = (np.arange(ccf.size)-(ccf.size-1)//2)*v_spacing
-
-	return ccf,ccf_v
-
+	return w_air
 
 
 # THIS IS IMPORTANT CODE THAT NEEDS TO BE PUT AT THE TOP OF THE bf.compute AND
