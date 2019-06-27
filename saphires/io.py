@@ -142,7 +142,9 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 		The file to be read in. Can be the name of a single pickle file, or
 		a list of spectra/spectral regions.
 		- Single file -- must end in a '.p' or '.pkl' and have the format
-		  described above.
+		  described above. This function currently assumes the pickle was 
+		  made with python 2, but it can read it in if you are using python 
+		  2 or 3. 
 		- List of spectra -- text file that must end in '.ls', '.dat', '.txt'.
 		  The input file must have the following format:
 		  filename order wavelength_range

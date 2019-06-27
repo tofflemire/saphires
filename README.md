@@ -17,4 +17,13 @@ It will soon include the following tools:
 
 - Fourier Cross Correlation
 
+
+There is also a utilities module (utils) that has some generally useful functions:
+
+- Air to vacuum wavelength conversions, and vice versa (vac2air, air2vac)
+
+- Continuum normalization (cont_norm)
+
+- With more to come...
+
 This code is actively being developed with the help of Danny Krolikowski, Natalie Gosnell, Emily Leiner, Victoria Catlett, and Miguel Gutierrez.
