@@ -142,9 +142,14 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 		The file to be read in. Can be the name of a single pickle file, or
 		a list of spectra/spectral regions.
 		- Single file -- must end in a '.p' or '.pkl' and have the format
-		  described above. This function currently assumes the pickle was 
-		  made with python 2, but it can read it in if you are using python 
-		  2 or 3. If your pickle was made in python 3, this will not work. 
+		  described above. 
+		  If you are using python 3, you can read in a pickle that was made 
+		  in python 3 or 2.
+		  If you are using python 2, you can currently only read in pickles
+		  that were made in python 2. 
+		  If you get a pickled tempate from me (Ben), it will have been made 
+		  in python 2 for maxinum compatibility, but yeah, you should be 
+		  moving to python 3.
 		- List of spectra -- text file that must end in '.ls', '.dat', '.txt'.
 		  The input file must have the following format:
 		  filename order wavelength_range
@@ -256,8 +261,14 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 		#-------------- READ IN -------------------------
 		if py_version == 2:
 			pic_dic = pkl.load(open(t_f_names[i],'rb'))
+
 		if py_version == 3:
-			pic_dic = pkl.load(open(t_f_names[i],'rb'),encoding='latin')
+			try:
+				#This tries to load in a python3 pickle
+				pic_dic = pkl.load(open(t_f_names[i],'rb'))
+			except:
+				#This tries to load in a python2 pickle
+				pic_dic = pkl.load(open(t_f_names[i],'rb'),encoding='latin')
 
 		keys = list(pic_dic.keys())
 
