@@ -32,7 +32,10 @@ import copy as copy
 import numpy as np
 from scipy import interpolate
 import matplotlib
-matplotlib.use('Qt5Agg')
+try:
+	matplotlib.use('Qt5Agg')
+except:
+	matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 import pickle as pkl
 from matplotlib.backends.backend_pdf import PdfPages

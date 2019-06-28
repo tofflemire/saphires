@@ -29,7 +29,10 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy import interpolate
 import matplotlib
-matplotlib.use('Qt5Agg')
+try:
+	matplotlib.use('Qt5Agg')
+except:
+	matplotlib.use('TKAgg')
 import matplotlib.pyplot as plt
 # ---- 
 
