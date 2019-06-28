@@ -29,13 +29,14 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy import interpolate
 import matplotlib
-try:
-	matplotlib.use('Qt5Agg')
-	import matplotlib.pyplot as plt
-except:
-	matplotlib.use('TKAgg')
-	import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
+#try:
+#	matplotlib.use('Qt5Agg')
+#	import matplotlib.pyplot as plt
+#except:
+#	matplotlib.use('TKAgg')
+#	import matplotlib.pyplot as plt
+matplotlib.use('TKAgg')
+import matplotlib.pyplot as plt	
 # ---- 
 
 # ---- Project

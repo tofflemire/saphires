@@ -27,14 +27,6 @@ import copy as copy
 import numpy as np
 from scipy.optimize import curve_fit
 from scipy import interpolate
-import matplotlib
-try:
-	matplotlib.use('Qt5Agg')
-	import matplotlib.pyplot as plt
-except:
-	matplotlib.use('TKAgg')
-	import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 import pickle as pkl
 # ---- 
 
