@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name='saphires',
-      version='0.1.7',
+      version='0.1.8',
       description='Stellar Analysis in Python for HIgh-REsolution Spectroscopy',
       author='Ben Tofflemire',
       author_email='tofflemire@utexas.edu',
