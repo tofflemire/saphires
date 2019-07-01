@@ -4,7 +4,7 @@ import numpy as np
 
 multi_spec = pkl.load(open('HD283818_Coude_py2.pkl','rb'))
 
-temp_spec = saph.io.read_pkl('lte06000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes_2800-11000_air.p',temp=True)
+temp_spec = saph.io.read_pkl('lte06000-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes_2800-11000_air.pkl',temp=True)
 
 tar = np.empty(0)
 tar_spec = {}
