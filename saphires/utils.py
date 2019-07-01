@@ -238,7 +238,7 @@ def bf_singleplot(t_f_names,t_spectra,for_plotting,f_trim=20):
 
 	'''
 
-	pp=PdfPages(t_f_names[0].split('.')[0]+'_allplots.pdf')
+	pp=PdfPages(t_f_names[0].split('[')[0].split('.')[0]+'_allplots.pdf')
 
 	for i in range(t_f_names.size):
 		w1=t_spectra[t_f_names[i]]['vwave']
