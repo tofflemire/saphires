@@ -26,6 +26,8 @@ Functions are listed in alphabetical order.
 # ---- Standard Library
 import sys
 import copy as copy
+import os
+from datetime import datetime
 # ----
 
 # ---- Third Party
@@ -740,6 +742,78 @@ def make_rot_pro_ip(R,e=0.75):
 		return prof_conv
 
 	return rot_pro_ip
+
+
+def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
+	'''
+	A function to stitch together certain parts a specified 
+	number of orders throughout a dictionary.
+	e.g. an 8 order spectrum, with a specified number of orders
+	to combine set to 2, will stich together 1-2, 3-4, 5-6, and 7-8,
+	and result in a dictionary with 4 stitched orders. 
+
+	If the number of combined orders does not divide evenly, the 
+	remaining orders will be appended to the last stitched order.
+	'''
+	n_orders = t_f_names[t_f_names!='Combined'].size
+
+	n_orders_out = np.int(n_orders/np.float(n_comb))
+
+	spectra_out = {}
+	t_f_names_out = np.zeros(n_orders_out,dtype='S1000')
+
+	for i in range(n_orders_out):
+		w_all = np.empty(0)
+		flux_all = np.empty(0)
+
+		for j in range(n_comb):
+			w_all = np.append(w_all,spectra[t_f_names[i*n_comb+j]]['nwave'])
+			flux_all = np.append(flux_all,spectra[t_f_names[i*n_comb+j]]['nflux'])
+			
+			if j == 0:
+				w_range_all = spectra[t_f_names[i*n_comb+j]]['w_region']+','
+			if ((j > 0) & (j<n_comb-1)):
+				w_range_all = w_range_all+spectra[t_f_names[i*n_comb+j]]['w_region']+','
+			if j == n_comb-1:
+				w_range_all = w_range_all+spectra[t_f_names[i*n_comb+j]]['w_region']
+		
+		if i == n_orders_out-1:
+			leftover = n_orders - (i*n_comb+n_comb)
+			for j in range(leftover):
+				w_all = np.append(w_all,spectra[t_f_names[i*n_comb+n_comb+j]]['nwave'])
+				flux_all = np.append(flux_all,spectra[t_f_names[i*n_comb+n_comb+j]]['nflux'])
+				
+				if j == 0:
+					w_range_all = w_range_all+','+spectra[t_f_names[i*n_comb+n_comb+j]]['w_region']+','
+				if ((j > 0) & (j < leftover-1)):
+					w_range_all = w_range_all+spectra[t_f_names[i*n_comb+n_comb+j]]['w_region']+','
+				if j == leftover-1:
+					w_range_all = w_range_all+spectra[t_f_names[i*n_comb+n_comb+j]]['w_region']
+
+		if w_range_all[-1] == ',':
+			w_range_all = w_range_all[:-1]
+
+		flux_all = flux_all[np.argsort(w_all)]
+		w_all = w_all[np.argsort(w_all)]
+
+		w_min=np.int(np.min(w_all))
+		w_max=np.int(np.max(w_all))
+
+		t_dw = np.median(w_all - np.roll(w_all,1))
+
+		t_f_names_out[i] = ('R'+np.str(i)+'['+np.str(i)+']['+np.str(w_min)+'-'+np.str(w_max)+']')
+
+		if print_orders == True:
+			print(t_f_names_out[i],w_range_all)
+		spectra_out[t_f_names_out[i]] = {'nflux': flux_all,
+										 'nwave': w_all,
+										 'ndw': np.median(np.abs(w_all - np.roll(w_all,1))),
+										 'wav_cent': np.mean(w_all),
+										 'w_region': w_range_all,
+										 'rv_shift': spectra[t_f_names[0]]['rv_shift'],
+										 'order_flag': 1}
+		
+	return t_f_names_out,spectra_out
 
 
 def prepare(t_f_names,t_spectra,temp_spec,oversample=1,

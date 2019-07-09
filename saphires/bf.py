@@ -71,9 +71,12 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 		the utils.prepare function with a template spectrum. 
 
 	vel_width : float
-		The range over which to compute the two-dimensional cross correlation.
-		Larger values take longer to run. Small values could exclude a peak 
-		you care about. The default value is 200 km/s. 
+		The range over which to compute the broadening function. The input 
+		value is the amount of velocity space conputed on either size of 0, 
+		i.e. a value of 200 produces a BF that spans -200 to +200. Units 
+		are in km/s.  The default value is 200 km/s. 
+		Large values take longer to run. Small values could exclude a peak 
+		you care about.
 
 	quiet : bool
     	Specifies whether messaged are printed to the teminal. Specifically, if 
@@ -430,7 +433,7 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 
 			rv = np.array([gs_fit[1],gs_fit[4],gs_fit[7]])[np.argsort(fit_int)][::-1]
 
-			rchis=untils.RChiS(vel[fit_trim:-fit_trim],
+			rchis=utils.RChiS(vel[fit_trim:-fit_trim],
 			            	   bf_smooth[fit_trim:-fit_trim],
 			            	   np.zeros(bf_smooth[fit_trim:-fit_trim].size)+
 			            	   np.std(bf_smooth[fit_trim:-fit_trim]),
@@ -465,12 +468,13 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 
 			if t_f_names[i] == 'Combined':
 				utils.bf_text_output(text_name_out,t_f_names[i].split('[')[0]+'[Combined]',
-				               		 spectra[t_f_names[i]]['temp_name'],gs_fit_out,rchis,rv_weight,fit_int)
+				               		 spectra[t_f_names[i]]['temp_name'],gs_fit_out,rchis,1.0,fit_int)
 			else:
-				untils.bf_text_output(text_name_out,t_f_names[i],spectra[t_f_names[i]]['temp_name'],
-				               		  gs_fit_out,rchis,rv_weight,fit_int)
+				utils.bf_text_output(text_name_out,t_f_names[i],spectra[t_f_names[i]]['temp_name'],
+				               		  gs_fit_out,rchis,1.0,fit_int)
 	if single_plot == True:
 		utils.bf_singleplot(t_f_names[t_f_ind],spectra,for_plotting,f_trim=fit_trim)
 
 	return spectra
+
 
