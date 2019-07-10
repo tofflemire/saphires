@@ -306,6 +306,8 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 				t_flux = pic_dic[dk_flux][j_ind]
 				t_w = pic_dic[dk_wav][j_ind]
 
+			t_w = t_w*w_mult
+
 			if in_type in direct:
 				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
 			if in_type in ord_list:
@@ -315,8 +317,6 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 					w_range_out = w_range[j]
 
 		#------------------------------------------------------
-
-			t_w = t_w*w_mult
 
 			t_w, t_flux = utils.spec_trim(t_w,t_flux,w_range_out,'*',trim_style=trim_style)
 		

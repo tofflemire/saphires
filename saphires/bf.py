@@ -337,8 +337,8 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 			if prof == 'g':
 				func = utils.d_gaussian_off
 
-				bounds = ([0.01,rv_low,0.05,0.01,rv_low,0.05,-1],
-				          [np.inf,rv_high,80,np.inf,rv_high,80,1])
+				bounds = ([0.0005, rv_low,  0.05, 0.0005, rv_low,  0.05, -1],
+				          [np.inf, rv_high, 10,   np.inf, rv_high, 10,    1])
 
 				if p_rv == False:
 					gs_fit,gs_errors=curve_fit(func,vel[fit_trim:-fit_trim],bf_smooth[fit_trim:-fit_trim],
