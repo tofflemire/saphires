@@ -873,6 +873,7 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 				print('Non-linear wavelength solutions are not currently supported')
 				print('Aborting...')
 				return 
+				
 			w0 = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
 			t_dw = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
 			z = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])

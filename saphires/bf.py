@@ -151,6 +151,101 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 	return spectra
 
 
+def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None):
+	'''
+	A function to combine BFs from different spectral orders, weighted 
+	by the standard deviation of the BF sideband. 
+
+	BF from different orders are intpolated to have the same velocity 
+	spacing and velocity coverage. 
+
+	The STD of their sidebands (as determined with the std_perc or 
+	vel_gt_lt). A three sigma_clip removes huge outliers. 
+
+	The surviving BFs are combined, weighted by the sideband STD. 
+
+	Parameters
+    ----------
+    t_f_names: array-like
+		Array of keywords for a science spectrum SAPHIRES dictionary. Output of 
+		one of the saphires.io read-in functions.
+
+	t_spectra : python dictionary
+		SAPHIRES dictionary for the science spectrum that has been prepared with 
+		the utils.prepare function with a template spectrum. 
+
+	std_perc : float
+		Defines the sideband region to determine each order's weight. 
+		The value is the percentage of the velocity space, over which the entire 
+		BF was computed, to be used to measure the sideband standard deviation, 
+		evaluated from each end. For example, if std_perc = 0.1 (i.e. 10%), and 
+		the BF was computed over +/- 200 km/s (400 km/s total), a 40 km/s region 
+		on either end of the BF will be used to determine the order standard 
+		deviation.
+		This option is nice when your features are centered near zero velocity. 
+		An alternative options is available with the vel_gt_lt parameter.
+		The default value if 0.1
+
+	vel_gt_lt : array-like
+		A two element array providing the upper and lower limit of the velocity
+		array over which the BF standard deviation is computed. For example, if 
+		your feature is at +10 km/s and is 20 km/s wide, you could enter 
+		vel_gt_lt = (+35,-5). If this parameter is used, std_perc is ignored. 
+		The default value is None.
+
+	Returns
+    -------
+    v_resample : array-like
+		The velocity array of the weighted, combined BF.
+
+    bf_w4sc : array-like
+		The weighted, combined BF. 
+
+	'''
+	t_f_names_out = copy.deepcopy(t_f_names)
+	spectra_out = copy.deepcopy(spectra)
+
+	good_orders = np.ones(t_f_names.size,dtype=bool)
+	for i in range(t_f_names.size):
+		if type(spectra[t_f_names[i]]['order_flag']) == 0:
+			good_orders[i] = False
+		if t_f_names[i] == 'Combined':
+			good_orders[i] = False
+
+	v_spacing = np.zeros(t_f_names[good_orders].size)
+	v_max = np.zeros(t_f_names[good_orders].size)
+
+	for i in range(t_f_names[good_orders].size):
+		v_spacing[i] = spectra[t_f_names[good_orders][i]]['vel_spacing']
+		v_max[i] = np.max(spectra[t_f_names[good_orders][i]]['vel'])
+
+	v_resample = np.linspace(-np.min(v_max), np.min(v_max), np.min(v_max)*2.0/np.min(v_spacing))
+
+	bfs = np.zeros([t_f_names[good_orders].size,v_resample.size])
+
+	stds = np.zeros(t_f_names[good_orders].size)
+
+	for i in range(t_f_names[good_orders].size):
+		bf_f = interpolate.interp1d(spectra[t_f_names[good_orders][i]]['vel'],spectra[t_f_names[good_orders][i]]['bf_smooth'])
+		bfs[i,:] = bf_f(v_resample)
+
+	#Weighted by standard deviation of sidebands (1/std**2)
+	weight = np.zeros(t_f_names[good_orders].size)
+	for i in range(t_f_names[good_orders].size):
+		if vel_gt_lt == None:
+			stds[i] = np.std([bfs[i,:][:np.int(v_resample.size*std_perc)], bfs[i,:][-np.int(v_resample.size*std_perc):]])
+		else:
+			stds[i] = np.std([bfs[i,:][v_resample > vel_gt_lt[0]], bfs[i,:][v_resample < vel_gt_lt[1]]]) 
+
+		weight[i] = 1.0/stds[i]**2
+
+	stdsc,stdsc_mask = utils.sigma_clip(stds,sig=3,iters=100)
+
+	bf_wsc = np.sum(bfs[stdsc_mask]*weight[stdsc_mask][np.newaxis].T,axis=0) / np.sum(weight[stdsc_mask])
+
+	return v_resample,bf_w4sc
+
+
 def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
     text_out=False,text_name=False,single_plot=False,
     p_rv=False,prof='g',R=50000.0,R_ip=50000.0,e=0.75):
@@ -476,5 +571,6 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 		utils.bf_singleplot(t_f_names[t_f_ind],spectra,for_plotting,f_trim=fit_trim)
 
 	return spectra
+
 
 
