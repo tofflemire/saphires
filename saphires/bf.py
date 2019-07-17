@@ -151,7 +151,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 	return spectra
 
 
-def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None):
+def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 	'''
 	A function to combine BFs from different spectral orders, weighted 
 	by the standard deviation of the BF sideband. 
@@ -160,7 +160,8 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None):
 	spacing and velocity coverage. 
 
 	The STD of their sidebands (as determined with the std_perc or 
-	vel_gt_lt). A three sigma_clip removes huge outliers. 
+	vel_gt_lt). A three is an optional sigma_clip parameter to remove 
+	huge outliers. 
 
 	The surviving BFs are combined, weighted by the sideband STD. 
 
@@ -192,6 +193,10 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None):
 		your feature is at +10 km/s and is 20 km/s wide, you could enter 
 		vel_gt_lt = (+35,-5). If this parameter is used, std_perc is ignored. 
 		The default value is None.
+
+	sig_clip : bool
+		Option to perform a sigma clip on the measured standard deviation.
+		The default value is True.
 
 	Returns
     -------
@@ -235,15 +240,18 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None):
 		if vel_gt_lt == None:
 			stds[i] = np.std([bfs[i,:][:np.int(v_resample.size*std_perc)], bfs[i,:][-np.int(v_resample.size*std_perc):]])
 		else:
-			stds[i] = np.std([bfs[i,:][v_resample > vel_gt_lt[0]], bfs[i,:][v_resample < vel_gt_lt[1]]]) 
+			stds[i] = np.std(bfs[i,:][(v_resample > vel_gt_lt[0]) | (v_resample < vel_gt_lt[1])])
 
 		weight[i] = 1.0/stds[i]**2
 
-	stdsc,stdsc_mask = utils.sigma_clip(stds,sig=3,iters=100)
+	if sig_clip == True:
+		stdsc,stdsc_mask = utils.sigma_clip(stds,sig=3,iters=100)
+	else:
+		stdsc_mask = np.ones(stds.size,dtype=bool)
 
 	bf_wsc = np.sum(bfs[stdsc_mask]*weight[stdsc_mask][np.newaxis].T,axis=0) / np.sum(weight[stdsc_mask])
 
-	return v_resample,bf_w4sc
+	return v_resample,bf_wsc
 
 
 def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
