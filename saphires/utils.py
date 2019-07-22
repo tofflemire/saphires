@@ -1179,7 +1179,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 	
 	def press_key(event):
 		if event.key == 'b':
-			l_range.append(np.int(np.round(event.xdata,2)))
+			l_range.append(np.round(event.xdata,2))
 
 			if (len(l_range)/2.0 % 1) != 0:
 				ax[0].axvline(event.xdata,ls='-',color='k')
