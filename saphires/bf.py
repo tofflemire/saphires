@@ -441,14 +441,14 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 				func = utils.d_gaussian_off
 
 				bounds = ([0.0005, rv_low,  0.05, 0.0005, rv_low,  0.05, -1],
-				          [np.inf, rv_high, 10,   np.inf, rv_high, 10,    1])
+				          [np.inf, rv_high, 150,  np.inf, rv_high, 150,    1])
 
 				if p_rv == False:
 					gs_fit,gs_errors=curve_fit(func,vel[fit_trim:-fit_trim],bf_smooth[fit_trim:-fit_trim],
 					                           bounds=bounds)
 				else:
 					gs_fit,gs_errors=curve_fit(func,vel[fit_trim:-fit_trim],bf_smooth[fit_trim:-fit_trim],
-					                           bounds=bounds,p0=[0.1,p_rv[0],1, 0.1,p_rv[1],1, 0])
+					                           bounds=bounds,p0=[0.1,p_rv[0],10, 0.1,p_rv[1],10, 0])
 
 				fit_int = np.array([gs_fit[0]*gs_fit[2]*np.sqrt(2*np.pi),
 				                   gs_fit[3]*gs_fit[5]*np.sqrt(2*np.pi)])

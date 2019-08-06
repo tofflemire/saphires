@@ -969,7 +969,7 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		#velocity spacing in km/s
 		stepV=r*2.997924*10**5
 
-	if type(vel_spacing) == float:
+	if ((type(vel_spacing) == float) or (type(vel_spacing) == 'numpy.float64')):
 		stepV = vel_spacing
 		r = stepV / (2.997924*10**5)
 		min_dw = r * max_w

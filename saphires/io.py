@@ -782,12 +782,16 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 		- If 'spl', unused regions will be interpolated over with a cubic 
 		  spline. You probably don't want to use this one.
 
-	header_wave : bool
+	header_wave : bool or 'Single'
 		Whether to assign the wavelength array from the header keywords or
 		from a separate fits extension. If True, it uses the header keywords,
 		assumiing they are linearly spaced. If False, it looks in the second 
 		fits extension, i.e. hdu[1].data
-		
+		If header_wave is set to 'Single', it treats each fits extension like
+		single order fits file that could be read in with saph.io.read_fits. 
+		This feature is useful for SALT/HRS specrtra reduced with the MIDAS 
+		pipeline.
+
     Returns
     -------
 	tar : array-like
@@ -828,13 +832,30 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 	#Read in Target spectra
 	for i in range(t_f_names.size):
 		t_hdulist = pyfits.open(t_f_names[i])
-		t_flux = t_hdulist[0].data[order[i]]
+		
+		if header_wave == 'Single':
+			t_flux=t_hdulist[order[i]].data
+			t_w0=np.float(t_hdulist[order[i]].header['CRVAL1'])
+			t_dw=np.float(t_hdulist[order[i]].header['CDELT1'])
+
+			if 'LTV1' in t_hdulist[order[i]].header:
+				t_shift=np.float(t_hdulist[order[i]].header['LTV1'])
+				t_w0=t_w0-t_shift*t_dw
+
+			t_w0=t_w0 * w_mult
+			t_dw=t_dw * w_mult
+
+			t_w=np.arange(t_flux.size)*t_dw+t_w0
 
 		if header_wave == False:
+			t_flux = t_hdulist[0].data[order[i]]
+			
 			t_w = t_hdulist[1].data[order[i]]*w_mult
 			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
 
 		if header_wave == True:
+			t_flux = t_hdulist[0].data[order[i]]
+
 			#Pulls out all headers that have the WAT2 keywords
 			header_keys=np.array(t_hdulist[0].header.keys(),dtype=str)
 			header_test=np.array([header_keys[d][0:4]=='WAT2' \
