@@ -39,6 +39,7 @@ matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle as pkl
+import astropy.io.fits as pyfits
 # ---- 
 
 # ---- Project
@@ -565,13 +566,13 @@ def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3):
 		Continuum normalized flux array
 
 	'''
-	norm_space = w_width/(w[1]-w[0])
+	norm_space = w_width #/(w[1]-w[0])
 
-	x = np.arange(f.size,dtype=float)
-	spl = bspl.iterfit(x, f, maxiter = maxiter, lower = lower, 
+	#x = np.arange(f.size,dtype=float)
+	spl = bspl.iterfit(w, f, maxiter = maxiter, lower = lower, 
 	                   upper = upper, bkspace = norm_space, 
 	      	           nord = nord )[0]
-	cont = spl.value(x)[0]
+	cont = spl.value(w)[0]
 	f_norm = f/cont
 
 	return f_norm
@@ -1200,7 +1201,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 
 	#----- Reading in and Formatiing ---------------	
 	if template == None:
-		template = copy.deepcop(target)
+		template = copy.deepcopy(target)
 
 	if py_version == 2:
 		tar = pkl.load(open(target,'rb'))
@@ -1263,8 +1264,9 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 		t_w = t_w[np.isfinite(t_flux)]
 		t_flux = t_flux[np.isfinite(t_flux)]
 		
+		#if ((w.size > 0) & (t_w.size > 0)):
 		fig,ax=plt.subplots(2,sharex=True)
-
+	
 		ax[0].set_title('Target - '+np.str(i_ind))
 		ax[0].plot(w,flux)
 		if len(l_range) > 0:
@@ -1276,7 +1278,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 		    	       np.median(flux)-np.median(flux)*0.5,
 		        	   np.median(flux)+np.median(flux)*0.5])
 		ax[0].grid(b=True,which='both',axis='both')
-
+	
 		ax[1].set_title('Template - '+np.str(i_ind))
 		ax[1].plot(t_w,t_flux)
 		if len(l_range) > 0:
@@ -1289,18 +1291,18 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 			            np.median(t_flux)-np.median(t_flux)*0.5,
 			            np.median(t_flux)+np.median(t_flux)*0.5])
 		ax[1].grid(b=True,which='both',axis='both')
-
+	
 		plt.tight_layout()
-
+	
 		l_range = []
-
+	
 		cid = fig.canvas.mpl_connect('key_press_event',press_key)
-
+	
 		wait = p_input('')
-
+	
 		if wait != 'r':
 			i = i+1
-
+	
 			if len(l_range) > 0:
 				out_range=''
 				for j in range(len(l_range)):
@@ -1312,11 +1314,11 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 					if j == len(l_range)-1:
 						out_range=out_range+str(l_range[j])
 				print(target,i_ind,out_range)
-
+	
 		fig.canvas.mpl_disconnect(cid)
-
+	
 		plt.cla()
-
+	
 		plt.close()
         
 	return
@@ -1474,6 +1476,379 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False):
         
 	plt.ioff()
 
+	return
+
+
+def region_select_ms(target,template=None,tar_stretch=True,
+    temp_stretch=True,reverse=False,t_order=0,temp_order=0,
+    header_wave=False,w_mult=1,igrins_default=False):
+	'''
+	An interactive function to plot target and template spectra
+	that allowing you to select useful regions with which to 
+	compute the broadening functions, ccfs, ect.
+
+	This funciton is meant for multi-order specrta in a fits file.
+
+	For this function to work properly the template and target 
+	spectrum have to have the same format, i.e. the same number 
+	of orders and roughly the same wavelength coverage. 
+
+	If a template spectrum is not specified, it will plot the 
+	target twice, where it can be nice to have one strethed 
+	and on not. 
+
+	Functionality:
+	The function brings up an interactive figure with the target 
+	on top and the template on bottom. hitting the 'm' key will 
+	mark wavelengths dotted red lines. The 'b' key will mark the 
+	start of a region with a solid black line and then the end of 
+	the region with a dashed black line. Regions should always go 
+	from small wavelengths to larger wavelengths, and regions 
+	should always close (.i.e., end with a dashed line). Hitting 
+	the return key over the terminal will advance to the next order
+	and it will print the region(s) you've created to the terminal
+	screen that are in the format that the saphires.io.read 
+	functions use (you may have to delete commas and parenthesis
+	depending on whether you are running this command in python 2
+	or 3). The regions from the previous order will show 
+	up as dotted black lines allowing you to create regions that 
+	do not overlap. 
+
+	Parameters
+	----------
+	target : str
+		File name for a pickled dictionary that has wavelength and 
+		flux arrays for the target spectrum with the header keywords 
+		defined in the dk_wav and dk_flux arguments.
+
+	template : str, None
+		File name for a pickled dictionary that has wavelength and 
+		flux arrays for the target spectrum with the header keywords 
+		defined in the dk_wav and dk_flux arguments. If None, the 
+		target spectrum will be plotted in both panels. 
+
+	tar_stretch : bool
+		Option to window y-axis of the target spectrum plot on the 
+		median with 50% above and below. This is useful for echelle 
+		data with noisey edges. The default is True.
+
+	temp_stretch ; bool
+		Option to window y-axis of the template spectrum plot on the 
+		median with 50% above and below. This is useful for echelle 
+		data with noisey edges.The default is True.
+
+	reverse : bool
+		This function works best when the orders are ordered with
+		ascending wavelength coverage. If this is not the case, 
+		this option will flip them. The default is False, i.e., no 
+		flip in the order.
+
+	t_order : int
+		The order of the target spectrum. Some multi-order spectra 
+		come in multi-extension fits files (e.g. IGRINS). This 
+		parameter defines that extension. The default is 0.
+
+	temp_order : int
+		The order of the template spectrum. Some multi-order spectra 
+		come in multi-extension fits files (e.g. IGRINS). This 
+		parameter defines that extension. The default is 0.
+
+	header_wave : bool or 'Single'
+		Whether to assign the wavelength array from the header keywords or
+		from a separate fits extension. If True, it uses the header keywords,
+		assumiing they are linearly spaced. If False, it looks in the second 
+		fits extension, i.e. hdu[1].data
+		If header_wave is set to 'Single', it treats each fits extension like
+		single order fits file that could be read in with saph.io.read_fits. 
+		This feature is useful for SALT/HRS specrtra reduced with the MIDAS 
+		pipeline.
+
+	w_mult : float
+		Value to multiply the wavelength array. This is used to convert the 
+		input wavelength array to Angstroms if it is not already. The default 
+		is 1, assuming the wavelength array is alreay in Angstroms. 
+
+	igrins_default : bool
+		The option to override all of the input arguments to parameters
+		that are tailored to IGRINS data. Keyword arguments will be set 
+		to:
+		t_order = 0
+		temp_order = 3
+		temp_stretch = False
+		header_wave = True
+		w_mult = 10**4
+		reverse = True
+
+	Returns
+	-------
+	None
+
+	'''
+	l_range = []
+	
+	def press_key(event):
+		if event.key == 'b':
+			l_range.append(np.round(event.xdata,2))
+
+			if (len(l_range)/2.0 % 1) != 0:
+				ax[0].axvline(event.xdata,ls='-',color='k')
+				ax[1].axvline(event.xdata,ls='-',color='k')
+			else:
+				ax[0].axvline(event.xdata,ls='--',color='k')
+				ax[1].axvline(event.xdata,ls='--',color='k')
+			plt.draw()
+
+			return l_range
+
+		if event.key == 'm':
+			ax[0].axvline(event.xdata,ls=':',color='r')
+			ax[1].axvline(event.xdata,ls=':',color='r')
+			plt.draw()
+
+			return
+
+	if igrins_default == True:
+		t_order = 0
+		temp_order = 3
+		temp_stretch = False
+		header_wave = False
+		w_mult = 10**4
+		reverse = True
+
+	#----- Reading in and Formatiing ---------------	
+	if template == None:
+		template = copy.deepcopy(target)
+
+	hdulist = pyfits.open(target)
+	t_hdulist = pyfits.open(template)
+
+	if header_wave != 'Single':
+		order = hdulist[t_order].data.shape[0]
+	else:
+		order = len(hdulist)
+
+	plt.ion()
+
+	i = 0
+	while i < order:
+		if reverse == True:
+			i_ind = order-1-i
+		if reverse == False:
+			i_ind = i
+
+		#---- Read in the Target -----
+		if header_wave == 'Single':
+			flux=hdulist[i_ind].data
+			w0=np.float(hdulist[i_ind].header['CRVAL1'])
+			dw=np.float(hdulist[i_ind].header['CDELT1'])
+
+			if 'LTV1' in hdulist[i_ind].header:
+				shift=np.float(hdulist[i_ind].header['LTV1'])
+				w0=w0-shift*dw
+
+			w0=w0 * w_mult
+			dw=dw * w_mult
+
+			w=np.arange(flux.size)*dw+w0
+
+		if header_wave == False:
+			flux = hdulist[t_order].data[i_ind]
+			
+			w = hdulist[1].data[i_ind]*w_mult
+			dw=(np.max(w) - np.min(w))/np.float(w.size)
+
+		if header_wave == True:
+			flux = hdulist[order].data[i_ind]
+
+			#Pulls out all headers that have the WAT2 keywords
+			header_keys=np.array(hdulist[t_order].header.keys(),dtype=str)
+			header_test=np.array([header_keys[d][0:4]=='WAT2' \
+			                     for d in range(header_keys.size)])
+			w_sol_inds=np.where(header_test==True)[0]
+
+			#The loop below puts all the header extensions into one string
+			w_sol_str=''
+			for j in range(w_sol_inds.size):
+			    if len(hdulist[t_order].header[w_sol_inds[j]]) == 68:
+			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]
+			    if len(hdulist[t_order].header[w_sol_inds[j]]) == 67:
+			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]+' '
+			    if len(hdulist[t_order].header[w_sol_inds[j]]) == 66:
+			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]+' ' 
+			    if len(hdulist[t_order].header[w_sol_inds[j]]) < 66:
+			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]
+
+			# normalized the formatting
+			w_sol_str=w_sol_str.replace('    ',' ').replace('   ',' ').replace('  ',' ')
+
+			# removed wavelength solution preamble
+			w_sol_str=w_sol_str[16:]
+
+			#Check that the wavelength solution is linear.
+			w_parameters = len(w_sol_str.split(' = ')[1].split(' '))
+			if w_parameters > 11:
+				print('Your header wavelength solution is not linear')
+				print('Non-linear wavelength solutions are not currently supported')
+				print('Aborting...')
+				return 
+
+			w_type = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
+			if w_type != 0:
+				print('Your header wavelength solution is not linear')
+				print('Non-linear wavelength solutions are not currently supported')
+				print('Aborting...')
+				return 
+				
+			w0 = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
+			dw = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
+			z = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
+
+			w = ((np.arange(flux.size)*dw+w0)/(1+z))*w_mult
+
+
+		#---- Read in the Template -----
+		if header_wave == 'Single':
+			t_flux=t_hdulist[i_ind].data
+			t_w0=np.float(t_hdulist[i_ind].header['CRVAL1'])
+			t_dw=np.float(t_hdulist[i_ind].header['CDELT1'])
+
+			if 'LTV1' in t_hdulist[i_ind].header:
+				t_shift=np.float(t_hdulist[i_ind].header['LTV1'])
+				t_w0=t_w0-t_shift*t_dw
+
+			t_w0=t_w0 * w_mult
+			t_dw=t_dw * w_mult
+
+			t_w=np.arange(t_flux.size)*t_dw+t_w0
+
+		if header_wave == False:
+			t_flux = t_hdulist[temp_order].data[i_ind]
+			
+			t_w = t_hdulist[1].data[i_ind]*w_mult
+			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
+
+		if header_wave == True:
+			t_flux = t_hdulist[temp_order].data[i_ind]
+
+			#Pulls out all headers that have the WAT2 keywords
+			header_keys=np.array(t_hdulist[temp_order].header.keys(),dtype=str)
+			header_test=np.array([header_keys[d][0:4]=='WAT2' \
+			                     for d in range(header_keys.size)])
+			w_sol_inds=np.where(header_test==True)[0]
+
+			#The loop below puts all the header extensions into one string
+			w_sol_str=''
+			for j in range(w_sol_inds.size):
+			    if len(t_hdulist[temp_order].header[w_sol_inds[j]]) == 68:
+			        w_sol_str=w_sol_str+t_hdulist[temp_order].header[w_sol_inds[j]]
+			    if len(t_hdulist[temp_order].header[w_sol_inds[j]]) == 67:
+			        w_sol_str=w_sol_str+t_hdulist[temp_order].header[w_sol_inds[j]]+' '
+			    if len(t_hdulist[temp_order].header[w_sol_inds[j]]) == 66:
+			        w_sol_str=w_sol_str+t_hdulist[temp_order].header[w_sol_inds[j]]+' ' 
+			    if len(t_hdulist[temp_order].header[w_sol_inds[j]]) < 66:
+			        w_sol_str=w_sol_str+t_hdulist[temp_order].header[w_sol_inds[j]]
+
+			# normalized the formatting
+			w_sol_str=w_sol_str.replace('    ',' ').replace('   ',' ').replace('  ',' ')
+
+			# removed wavelength solution preamble
+			w_sol_str=w_sol_str[16:]
+
+			#Check that the wavelength solution is linear.
+			w_parameters = len(w_sol_str.split(' = ')[1].split(' '))
+			if w_parameters > 11:
+				print('Your header wavelength solution is not linear')
+				print('Non-linear wavelength solutions are not currently supported')
+				print('Aborting...')
+				return 
+
+			w_type = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
+			if w_type != 0:
+				print('Your header wavelength solution is not linear')
+				print('Non-linear wavelength solutions are not currently supported')
+				print('Aborting...')
+				return 
+				
+			t_w0 = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
+			t_dw = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
+			z = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
+
+			t_w = ((np.arange(t_flux.size)*t_dw+t_w0)/(1+z))*w_mult
+
+		#target
+		w = w[~np.isnan(flux)]
+		flux = flux[~np.isnan(flux)]
+
+		w = w[np.isfinite(flux)]
+		flux = flux[np.isfinite(flux)]
+
+		#template
+		t_w = t_w[~np.isnan(t_flux)]
+		t_flux = t_flux[~np.isnan(t_flux)]
+
+		t_w = t_w[np.isfinite(t_flux)]
+		t_flux = t_flux[np.isfinite(t_flux)]
+		
+		
+		#--------Interactive Plotting --------
+		fig,ax=plt.subplots(2,sharex=True)
+	
+		if ((w.size > 0) &(t_w.size > 0)):
+
+			ax[0].set_title('Target - '+np.str(i_ind))
+			ax[0].plot(w,flux)
+			if len(l_range) > 0:
+				for j in range(len(l_range)):
+					ax[0].axvline(l_range[j],ls=':',color='red')
+			ax[0].set_ylabel('Flux')
+			if tar_stretch == True:
+				ax[0].axis([np.min(w),np.max(w),
+			    	       np.median(flux)-np.median(flux)*0.5,
+			        	   np.median(flux)+np.median(flux)*0.5])
+			ax[0].grid(b=True,which='both',axis='both')
+	
+			ax[1].set_title('Template - '+np.str(i_ind))
+			ax[1].plot(t_w,t_flux)
+			if len(l_range) > 0:
+				for j in range(len(l_range)):
+					ax[1].axvline(l_range[j],ls=':',color='red')
+			ax[1].set_ylabel('Flux')
+			ax[1].set_xlabel('Wavelength')		
+			if ((t_flux.size > 0)&(temp_stretch==True)):
+				ax[1].axis([np.min(t_w),np.max(t_w),
+				            np.median(t_flux)-np.median(t_flux)*0.5,
+				            np.median(t_flux)+np.median(t_flux)*0.5])
+			ax[1].grid(b=True,which='both',axis='both')
+	
+			plt.tight_layout()
+	
+			l_range = []
+	
+			cid = fig.canvas.mpl_connect('key_press_event',press_key)
+	
+		wait = p_input('')
+	
+		if wait != 'r':
+			i = i+1
+	
+			if len(l_range) > 0:
+				out_range=''
+				for j in range(len(l_range)):
+					if j < len(l_range)-1:
+						if (j/2.0 % 1) != 0:
+							out_range=out_range+str(l_range[j])+','
+						if (j/2.0 % 1) == 0:
+							out_range=out_range+str(l_range[j])+'-'
+					if j == len(l_range)-1:
+						out_range=out_range+str(l_range[j])
+				print(target,i_ind,out_range)
+	
+		fig.canvas.mpl_disconnect(cid)
+	
+		plt.cla()
+	
+		plt.close()
+        
 	return
 
 
