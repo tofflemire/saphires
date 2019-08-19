@@ -1295,10 +1295,14 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 		ax[0].set_xlim(np.min(w),np.max(w))
 		if tell_file != None:
 			for j in range(w_tell.size):
-				r_alpha = np.max([0.2,1.0-r[j]])
-				ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
-				ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
-				ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+				if ((w_tell[j] > np.min(w)) & (w_tell[j] < np.max(w))) == True:
+					r_alpha = np.max([0.2,1.0-r[j]])
+					ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+					ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+					ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+					ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+					ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+					ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 
 		if tar_stretch == True:
 			ax[0].axis([np.min(w),np.max(w),
@@ -1313,12 +1317,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 				ax[1].axvline(l_range[j],ls=':',color='red')
 		ax[1].set_ylabel('Flux')
 		ax[1].set_xlabel('Wavelength')		
-		if tell_file != None:
-			for j in range(w_tell.size):
-				r_alpha = np.max([0.2,1.0-r[j]])
-				ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
-				ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
-				ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+
 		if ((t_flux.size > 0)&(temp_stretch==True)):
 			ax[1].axis([np.min(t_w),np.max(t_w),
 			            np.median(t_flux)-np.median(t_flux)*0.5,
@@ -1484,10 +1483,14 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
 		ax[0].set_xlim(np.min(w),np.max(w))
 		if tell_file != None:
 			for j in range(w_tell.size):
-				r_alpha = np.max([0.2,1.0-r[j]])
-				ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
-				ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
-				ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+				if ((w_tell[j] > np.min(w)) & (w_tell[j] < np.max(w))) == True:
+					r_alpha = np.max([0.2,1.0-r[j]])
+					ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+					ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+					ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+					ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+					ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+					ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 		if tar_stretch == True:
 			ax[0].axis([np.min(w_plot),np.max(w_plot),
 		    	       np.median(flux_plot)-np.median(flux_plot)*0.5,
@@ -1498,12 +1501,6 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
 		if len(l_range) > 0:
 			for j in range(len(l_range)):
 				ax[1].axvline(l_range[j],ls=':',color='red')
-		if tell_file != None:
-			for j in range(w_tell.size):
-				r_alpha = np.max([0.2,1.0-r[j]])
-				ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
-				ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
-				ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 		ax[1].set_ylabel('Flux')
 		ax[1].set_xlabel('Wavelength')		
 
@@ -1656,7 +1653,7 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		but just a heads up, these are in vaccum. 
 		If None, this option is ignored. 
 		The default is None. 
-		
+
 	Returns
 	-------
 	None
@@ -1887,10 +1884,14 @@ def region_select_ms(target,template=None,tar_stretch=True,
 			ax[0].set_xlim(np.min(w),np.max(w))
 			if tell_file != None:
 				for j in range(w_tell.size):
-					r_alpha = np.max([0.2,1.0-r[j]])
-					ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
-					ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
-					ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+					if ((w_tell[j] > np.min(w)) & (w_tell[j] < np.max(w))) == True:
+						r_alpha = np.max([0.2,1.0-r[j]])
+						ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+						ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+						ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+						ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+						ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+						ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 			if tar_stretch == True:
 				ax[0].axis([np.min(w),np.max(w),
 			    	       np.median(flux)-np.median(flux)*0.5,
@@ -1902,12 +1903,6 @@ def region_select_ms(target,template=None,tar_stretch=True,
 			if len(l_range) > 0:
 				for j in range(len(l_range)):
 					ax[1].axvline(l_range[j],ls=':',color='red')
-			if tell_file != None:
-				for j in range(w_tell.size):
-					r_alpha = np.max([0.2,1.0-r[j]])
-					ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
-					ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
-					ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 			ax[1].set_ylabel('Flux')
 			ax[1].set_xlabel('Wavelength')		
 			if ((t_flux.size > 0)&(temp_stretch==True)):
