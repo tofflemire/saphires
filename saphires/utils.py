@@ -1105,7 +1105,8 @@ def RChiS(x,y,yerr,func,params):
 
 
 def region_select_pkl(target,template=None,tar_stretch=True,
-    temp_stretch=True,reverse=False,dk_wav='wav',dk_flux='flux'):
+    temp_stretch=True,reverse=False,dk_wav='wav',dk_flux='flux',
+    tell_file=None):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -1171,6 +1172,19 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 	dk_flux : str
 		Dictionary keyword for the flux array. Default is 'flux'
 
+	tell_file : optional keyword, None or str
+		Name of file containing the location of telluric lines to be
+		plotted as vertical lines. This is useful when selecting 
+		regions free to telluric contamination. 
+		File must be a tab/space separated ascii text file with the 
+		following format:
+		w_low w_high depth(compated the conintuum) w_central
+		This is modeled after the MAKEE telluric template here:
+		https://www2.keck.hawaii.edu/inst/common/makeewww/Atmosphere/atmabs.txt
+		but just a heads up, these are in vaccum. 
+		If None, this option is ignored. 
+		The default is None. 
+
 	Returns
 	-------
 	None
@@ -1198,6 +1212,11 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 			plt.draw()
 
 			return
+
+	#------ Reading in telluric file --------------
+
+	if tell_file != None:
+		wl,wh,r,w_tell = np.loadtxt(tell_file,unpack=True)
 
 	#----- Reading in and Formatiing ---------------	
 	if template == None:
@@ -1273,6 +1292,14 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 			for j in range(len(l_range)):
 				ax[0].axvline(l_range[j],ls=':',color='red')
 		ax[0].set_ylabel('Flux')
+		ax[0].set_xlim(np.min(w),np.max(w))
+		if tell_file != None:
+			for j in range(w_tell.size):
+				r_alpha = np.max([0.2,1.0-r[j]])
+				ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+				ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+				ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+
 		if tar_stretch == True:
 			ax[0].axis([np.min(w),np.max(w),
 		    	       np.median(flux)-np.median(flux)*0.5,
@@ -1286,6 +1313,12 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 				ax[1].axvline(l_range[j],ls=':',color='red')
 		ax[1].set_ylabel('Flux')
 		ax[1].set_xlabel('Wavelength')		
+		if tell_file != None:
+			for j in range(w_tell.size):
+				r_alpha = np.max([0.2,1.0-r[j]])
+				ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+				ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+				ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 		if ((t_flux.size > 0)&(temp_stretch==True)):
 			ax[1].axis([np.min(t_w),np.max(t_w),
 			            np.median(t_flux)-np.median(t_flux)*0.5,
@@ -1324,7 +1357,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 	return
 
 
-def region_select_vars(w,f,tar_stretch=True,reverse=False):
+def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
 	'''
 	An interactive function to plot spectra that allowing you 
 	to select useful regions with which to compute the 
@@ -1361,6 +1394,19 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False):
 		this option will flip them. The default is False, i.e., no 
 		flip in the order.
 
+	tell_file : optional keyword, None or str
+		Name of file containing the location of telluric lines to be
+		plotted as vertical lines. This is useful when selecting 
+		regions free to telluric contamination. 
+		File must be a tab/space separated ascii text file with the 
+		following format:
+		w_low w_high depth(compated the conintuum) w_central
+		This is modeled after the MAKEE telluric template here:
+		https://www2.keck.hawaii.edu/inst/common/makeewww/Atmosphere/atmabs.txt
+		but just a heads up, these are in vaccum. 
+		If None, this option is ignored. 
+		The default is None. 
+
 	Returns
 	-------
 	None
@@ -1388,6 +1434,11 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False):
 			plt.draw()
 
 			return
+
+	#------ Reading in telluric file --------------
+
+	if tell_file != None:
+		wl,wh,r,w_tell = np.loadtxt(tell_file,unpack=True)
 
 	#----- Reading in and Formatiing ---------------	
 	if (w.ndim == 1):
@@ -1430,6 +1481,13 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False):
 			for j in range(len(l_range)):
 				ax[0].axvline(l_range[j],ls=':',color='red')
 		ax[0].set_ylabel('Flux')
+		ax[0].set_xlim(np.min(w),np.max(w))
+		if tell_file != None:
+			for j in range(w_tell.size):
+				r_alpha = np.max([0.2,1.0-r[j]])
+				ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+				ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+				ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 		if tar_stretch == True:
 			ax[0].axis([np.min(w_plot),np.max(w_plot),
 		    	       np.median(flux_plot)-np.median(flux_plot)*0.5,
@@ -1440,6 +1498,12 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False):
 		if len(l_range) > 0:
 			for j in range(len(l_range)):
 				ax[1].axvline(l_range[j],ls=':',color='red')
+		if tell_file != None:
+			for j in range(w_tell.size):
+				r_alpha = np.max([0.2,1.0-r[j]])
+				ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+				ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+				ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 		ax[1].set_ylabel('Flux')
 		ax[1].set_xlabel('Wavelength')		
 
@@ -1481,7 +1545,8 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False):
 
 def region_select_ms(target,template=None,tar_stretch=True,
     temp_stretch=True,reverse=False,t_order=0,temp_order=0,
-    header_wave=False,w_mult=1,igrins_default=False):
+    header_wave=False,w_mult=1,igrins_default=False,
+    tell_file=None):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -1579,6 +1644,19 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		w_mult = 10**4
 		reverse = True
 
+	tell_file : optional keyword, None or str
+		Name of file containing the location of telluric lines to be
+		plotted as vertical lines. This is useful when selecting 
+		regions free to telluric contamination. 
+		File must be a tab/space separated ascii text file with the 
+		following format:
+		w_low w_high depth(compated the conintuum) w_central
+		This is modeled after the MAKEE telluric template here:
+		https://www2.keck.hawaii.edu/inst/common/makeewww/Atmosphere/atmabs.txt
+		but just a heads up, these are in vaccum. 
+		If None, this option is ignored. 
+		The default is None. 
+		
 	Returns
 	-------
 	None
@@ -1614,6 +1692,11 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		header_wave = False
 		w_mult = 10**4
 		reverse = True
+
+	#------ Reading in telluric file --------------
+
+	if tell_file != None:
+		wl,wh,r,w_tell = np.loadtxt(tell_file,unpack=True)
 
 	#----- Reading in and Formatiing ---------------	
 	if template == None:
@@ -1801,6 +1884,13 @@ def region_select_ms(target,template=None,tar_stretch=True,
 				for j in range(len(l_range)):
 					ax[0].axvline(l_range[j],ls=':',color='red')
 			ax[0].set_ylabel('Flux')
+			ax[0].set_xlim(np.min(w),np.max(w))
+			if tell_file != None:
+				for j in range(w_tell.size):
+					r_alpha = np.max([0.2,1.0-r[j]])
+					ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+					ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+					ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 			if tar_stretch == True:
 				ax[0].axis([np.min(w),np.max(w),
 			    	       np.median(flux)-np.median(flux)*0.5,
@@ -1812,6 +1902,12 @@ def region_select_ms(target,template=None,tar_stretch=True,
 			if len(l_range) > 0:
 				for j in range(len(l_range)):
 					ax[1].axvline(l_range[j],ls=':',color='red')
+			if tell_file != None:
+				for j in range(w_tell.size):
+					r_alpha = np.max([0.2,1.0-r[j]])
+					ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
+					ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
+					ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 			ax[1].set_ylabel('Flux')
 			ax[1].set_xlabel('Wavelength')		
 			if ((t_flux.size > 0)&(temp_stretch==True)):
@@ -2254,19 +2350,4 @@ def vac2air(w_vac):
 	return w_air
 
 
-# THIS IS IMPORTANT CODE THAT NEEDS TO BE PUT AT THE TOP OF THE bf.compute AND
-# xc.todcor FUNCTIONS
-#if w1t.size < m:
-#	if quiet == False:
-#		print t_f_names[i],t_spectra[t_f_names[i]][8]
-#		print "The target mask region is smaller for the m value."
-#		print w1t.size,'versus',m
-#		print "You can either reduce m or remove this order from the input or don't worry about it."
-#		print ' '
-#	spectra[t_f_names[i]][5] = 0.0	
-#	spectra[t_f_names[i]][15] = 0
-#	continue
-
-#velocity array
-#vel=stepV*(np.arange(m)-m//2)
 
