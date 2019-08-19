@@ -1296,7 +1296,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 		if tell_file != None:
 			for j in range(w_tell.size):
 				if ((w_tell[j] > np.min(w)) & (w_tell[j] < np.max(w))) == True:
-					r_alpha = np.max([0.2,1.0-r[j]])
+					r_alpha = 1.0-r[j]
 					ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
 					ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
 					ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
@@ -1484,7 +1484,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
 		if tell_file != None:
 			for j in range(w_tell.size):
 				if ((w_tell[j] > np.min(w)) & (w_tell[j] < np.max(w))) == True:
-					r_alpha = np.max([0.2,1.0-r[j]])
+					r_alpha = 1.0-r[j]
 					ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
 					ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
 					ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
@@ -1885,7 +1885,7 @@ def region_select_ms(target,template=None,tar_stretch=True,
 			if tell_file != None:
 				for j in range(w_tell.size):
 					if ((w_tell[j] > np.min(w)) & (w_tell[j] < np.max(w))) == True:
-						r_alpha = np.max([0.2,1.0-r[j]])
+						r_alpha = 1.0-r[j]
 						ax[0].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
 						ax[0].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
 						ax[0].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
