@@ -1106,7 +1106,7 @@ def RChiS(x,y,yerr,func,params):
 
 def region_select_pkl(target,template=None,tar_stretch=True,
     temp_stretch=True,reverse=False,dk_wav='wav',dk_flux='flux',
-    tell_file=None):
+    tell_file=None,jump_to=0,reg_file=None):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -1185,6 +1185,17 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 		If None, this option is ignored. 
 		The default is None. 
 
+	jump_to : int
+		Starting order. Useful when you want to pick up somewhere. 
+		Default is 0.
+
+	reg_file : optional keyword, None or str
+		The name of a region file you want to overplay on the target and
+		template spectra. The start of a regions will be a solid veritcal 
+		grey line. The end will be a dahsed vertical grey line.
+		The region file has the same formatting requirements as the io.read 
+		functions. The default is None.
+
 	Returns
 	-------
 	None
@@ -1218,6 +1229,11 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 	if tell_file != None:
 		wl,wh,r,w_tell = np.loadtxt(tell_file,unpack=True)
 
+	#------ Reading in region file --------------
+
+	if reg_file != None:
+		name,reg_order,w_string = np.loadtxt(reg_file,unpack=True,dtype='S100,i,S1000')
+
 	#----- Reading in and Formatiing ---------------	
 	if template == None:
 		template = copy.deepcopy(target)
@@ -1249,7 +1265,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 
 	plt.ion()
 
-	i = 0
+	i = 0 + jump_to
 	while i < order:
 		if order > 1:
 			if reverse == True:
@@ -1284,7 +1300,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 		t_flux = t_flux[np.isfinite(t_flux)]
 		
 		#if ((w.size > 0) & (t_w.size > 0)):
-		fig,ax=plt.subplots(2,sharex=True)
+		fig,ax=plt.subplots(2,sharex=True,figsize=(14.25,7.5))
 	
 		ax[0].set_title('Target - '+np.str(i_ind))
 		ax[0].plot(w,flux)
@@ -1303,6 +1319,17 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 					ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
 					ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
 					ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+
+		if reg_file != None:
+			if i in reg_order:
+				n_regions=len(str(w_string[i]).split('-'))-1
+				for j in range(n_regions):
+					w_reg_start = np.float(w_string[i].split(',')[j].split('-')[0])
+					w_reg_end = np.float(w_string[i].split(',')[j].split('-')[1])
+					ax[0].axvline(w_reg_start,ls='-',color='grey')
+					ax[0].axvline(w_reg_end,ls='--',color='grey')
+					ax[1].axvline(w_reg_start,ls='-',color='grey')
+					ax[1].axvline(w_reg_end,ls='--',color='grey')
 
 		if tar_stretch == True:
 			ax[0].axis([np.min(w),np.max(w),
@@ -1325,7 +1352,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 		ax[1].grid(b=True,which='both',axis='both')
 	
 		plt.tight_layout()
-	
+
 		l_range = []
 	
 		cid = fig.canvas.mpl_connect('key_press_event',press_key)
@@ -1356,7 +1383,8 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 	return
 
 
-def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
+def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,
+    jump_to=0):
 	'''
 	An interactive function to plot spectra that allowing you 
 	to select useful regions with which to compute the 
@@ -1406,6 +1434,10 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
 		If None, this option is ignored. 
 		The default is None. 
 
+	jump_to : int
+		Starting order. Useful when you want to pick up somewhere. 
+		Default is 0.
+
 	Returns
 	-------
 	None
@@ -1449,7 +1481,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
 
 	plt.ion()
 
-	i = 0
+	i = 0 + jump_to
 	while i < order:
 		if order > 1:
 			if reverse == True:
@@ -1543,7 +1575,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None):
 def region_select_ms(target,template=None,tar_stretch=True,
     temp_stretch=True,reverse=False,t_order=0,temp_order=0,
     header_wave=False,w_mult=1,igrins_default=False,
-    tell_file=None):
+    tell_file=None,jump_to=0):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -1654,6 +1686,10 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		If None, this option is ignored. 
 		The default is None. 
 
+	jump_to : int
+		Starting order. Useful when you want to pick up somewhere. 
+		Default is 0.
+
 	Returns
 	-------
 	None
@@ -1709,7 +1745,7 @@ def region_select_ms(target,template=None,tar_stretch=True,
 
 	plt.ion()
 
-	i = 0
+	i = 0 + jump_to
 	while i < order:
 		if reverse == True:
 			i_ind = order-1-i
