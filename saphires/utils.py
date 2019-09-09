@@ -1504,7 +1504,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,
 		w_plot = w_plot[np.isfinite(flux_plot)]
 		flux_plot = flux_plot[np.isfinite(flux_plot)]
 
-		fig,ax=plt.subplots(2,sharex=True)
+		fig,ax=plt.subplots(2,sharex=True,figsize=(14.25,7.5))
 
 		ax[0].set_title('Target - '+np.str(i_ind))
 		ax[0].plot(w_plot,flux_plot)
@@ -1575,7 +1575,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,
 def region_select_ms(target,template=None,tar_stretch=True,
     temp_stretch=True,reverse=False,t_order=0,temp_order=0,
     header_wave=False,w_mult=1,igrins_default=False,
-    tell_file=None,jump_to=0):
+    tell_file=None,jump_to=0,reg_file=None):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -1690,6 +1690,13 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		Starting order. Useful when you want to pick up somewhere. 
 		Default is 0.
 
+	reg_file : optional keyword, None or str
+		The name of a region file you want to overplay on the target and
+		template spectra. The start of a regions will be a solid veritcal 
+		grey line. The end will be a dahsed vertical grey line.
+		The region file has the same formatting requirements as the io.read 
+		functions. The default is None.
+
 	Returns
 	-------
 	None
@@ -1730,6 +1737,15 @@ def region_select_ms(target,template=None,tar_stretch=True,
 
 	if tell_file != None:
 		wl,wh,r,w_tell = np.loadtxt(tell_file,unpack=True)
+
+	#------ Reading in region file --------------
+
+	if reg_file != None:
+		name,reg_order,w_string = np.loadtxt(reg_file,unpack=True,dtype='S100,i,S1000')
+		if (name.size == 1): 
+			name=np.array([name])
+			reg_order=np.array([reg_order])
+			w_string=np.array([w_string])
 
 	#----- Reading in and Formatiing ---------------	
 	if template == None:
@@ -1907,7 +1923,7 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		
 		
 		#--------Interactive Plotting --------
-		fig,ax=plt.subplots(2,sharex=True)
+		fig,ax=plt.subplots(2,sharex=True,figsize=(14.25,7.5))
 	
 		if ((w.size > 0) &(t_w.size > 0)):
 
@@ -1928,6 +1944,18 @@ def region_select_ms(target,template=None,tar_stretch=True,
 						ax[1].axvline(w_tell[j],ls='--',color='blue',alpha=r_alpha)
 						ax[1].axvline(wl[j],ls=':',color='blue',alpha=r_alpha)
 						ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
+
+			if reg_file != None:
+				if i in reg_order:
+					n_regions=len(str(w_string[i]).split('-'))-1
+					for j in range(n_regions):
+						w_reg_start = np.float(w_string[i].split(',')[j].split('-')[0])
+						w_reg_end = np.float(w_string[i].split(',')[j].split('-')[1])
+						ax[0].axvline(w_reg_start,ls='-',color='grey')
+						ax[0].axvline(w_reg_end,ls='--',color='grey')
+						ax[1].axvline(w_reg_start,ls='-',color='grey')
+						ax[1].axvline(w_reg_end,ls='--',color='grey')
+
 			if tar_stretch == True:
 				ax[0].axis([np.min(w),np.max(w),
 			    	       np.median(flux)-np.median(flux)*0.5,
@@ -2352,6 +2380,57 @@ def td_gaussian(xy_ins, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 	z = g.ravel()
 
 	return z
+
+
+def t_gaussian_off(x,A1,x01,sig1,A2,x02,sig2,A3,x03,sig3,o):
+    '''
+    A double gaussian function with a constant vetical offset.
+
+    Parameters
+	----------
+	x : array-like
+		Array of x values over which the Gaussian profile will 
+		be computed.
+
+	A1 : float
+		Amplitude of the first Gaussian profile. 
+
+	x01 : float
+		Center of the first Gaussian profile.
+
+	sig1 : float
+		Standard deviation (sigma) of the first Gaussian profile. 
+
+	A2 : float
+		Amplitude of the second Gaussian profile. 
+
+	x02 : float
+		Center of the second Gaussian profile.
+
+	sig2 : float
+		Standard deviation (sigma) of the second Gaussian profile. 
+
+	A3 : float
+		Amplitude of the third Gaussian profile. 
+
+	x03 : float
+		Center of the third Gaussian profile.
+
+	sig3 : float
+		Standard deviation (sigma) of the third Gaussian profile. 
+
+	o : float
+		Vertical offset of the Gaussian mixture. 
+
+    Returns
+	-------
+	profile : array-like
+		The Gaussian mixture specified over the input x array.
+		Array has the same length as x.
+    '''
+    return (A1*np.e**(-(x-x01)**2/(2.0*sig1**2))+
+            A2*np.e**(-(x-x02)**2/(2.0*sig2**2))+
+            A3*np.e**(-(x-x03)**2/(2.0*sig3**2))+o)
 
 
 def vac2air(w_vac):
