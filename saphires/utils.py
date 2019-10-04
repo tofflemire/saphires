@@ -82,7 +82,7 @@ def air2vac(w_air):
 	return w_vac
 
 
-def apply_shift(t_f_names,t_spectra,rv_shift):
+def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 	'''
 	A function to apply a velocity shift to an input spectrum.
 
@@ -111,6 +111,21 @@ def apply_shift(t_f_names,t_spectra,rv_shift):
 	rv_shift : float
 		The velocity (in km/s) you want centered at zero.
 
+	shift_style : str, optional
+		Parameter defines how to shift is applied. Options are 'basic' and
+		'inter'. The defaul is 'basic'.
+		- The 'basic' option adjusts the wavelength asignments with the
+		  standard RV shift. Pros, you don't interpolate the flux values; 
+		  Cons, you change the wavelength spacing from being strictly linear. 
+		  The Pros outweight the cons in most scenarios.
+		- The 'inter' option leaves the wavelength gridpoints the same, but 
+		  shifts the flux with an interpolation. Pros, you don't change the 
+		  wavelength spacing; Cons, you interpolate the flux, before you 
+		  interpolate it again in the prepare step. Interpolating flux is not
+		  the best thing to do, so the less times you do it the better. 
+		  The only case I can think of where this method would be better is
+		  if your "order" spanned a huge wavelength range. 
+
 	Returns
 	-------
 	spectra_out : python dictionary
@@ -126,23 +141,31 @@ def apply_shift(t_f_names,t_spectra,rv_shift):
 	spectra_out = copy.deepcopy(t_spectra)
 
 	for i in range(t_f_names.size):
-		w_unshifted = spectra_out[t_f_names[i]]['nwave']
-	
-		w_shifted=w_unshifted/(1-(-rv_shift/(2.997924*10**5)))
+		if shift_style == 'inter':
+			w_unshifted = spectra_out[t_f_names[i]]['nwave']
 		
-		f_shifted_f=interpolate.interp1d(w_shifted,spectra_out[t_f_names[i]]['nflux'])
+			w_shifted = w_unshifted/(1-(-rv_shift/(2.997924*10**5)))
+			
+			f_shifted_f = interpolate.interp1d(w_shifted,spectra_out[t_f_names[i]]['nflux'])
+		
+			shift_trim = ((w_unshifted>=np.min(w_shifted))&(w_unshifted<=np.max(w_shifted)))
+		
+			w_unshifted = w_unshifted[shift_trim]
+		
+			spectra_out[t_f_names[i]]['nwave'] = w_unshifted
+		
+			f_out=f_shifted_f(w_unshifted)
+		
+			spectra_out[t_f_names[i]]['nflux'] = f_out
 	
-		shift_trim = ((w_unshifted>=np.min(w_shifted))&(w_unshifted<=np.max(w_shifted)))
-	
-		w_unshifted = w_unshifted[shift_trim]
-	
-		spectra_out[t_f_names[i]]['nwave'] = w_unshifted
-	
-		f_out=f_shifted_f(w_unshifted)
-	
-		spectra_out[t_f_names[i]]['nflux'] = f_out
+			w_range = spectra_out[t_f_names[i]]['w_region']
 
-		w_range = spectra_out[t_f_names[i]]['w_region']
+		if shift_style == 'basic':
+			w_unshifted = spectra_out[t_f_names[i]]['nwave']
+		
+			w_shifted = w_unshifted/(1-(-rv_shift/(2.997924*10**5)))
+
+			spectra_out[t_f_names[i]]['nwave'] = w_shifted
 
 		if w_range != '*':
 			w_split = np.empty(0)
@@ -746,6 +769,100 @@ def make_rot_pro_ip(R,e=0.75):
 	return rot_pro_ip
 
 
+def make_rot_pro_qip(R,a=0.3,b=0.4):
+	'''
+	A function to make a specific rotationally broadened fitting 
+	function with a specific limb-darkening parameter that is 
+	convolved with the instrumental profile that corresponds to 
+	a given spectral resolution.
+
+	The output profile is uses the linear limb darkening law from
+	Gray 2005
+
+	Parameters
+	----------
+	R : float
+		The resolution that corresponds to the spectrograph's 
+		instrumental profile. 
+
+	e : float
+		Linear limb darkening parameter. Default is 0.75, 
+		appropriate for a low-mass star.
+
+	Returns
+	-------
+	rot_pro_ip : function
+		A function that returns the line profile for a rotationally
+		broadened star with the limb darkening parameter given by the make
+		function and that have been convolved with the instrumental 
+		profile specified by the spectral resolution by the make function 
+		above.
+
+		Parameters
+		----------
+		x : array-like
+			X array values, should be provided in velocity in km/s, over
+			which the smooth rotationally broadened profile will be 
+			computed. 
+
+		A : float
+			Amplitude of the smoothed rotationally broadened profile. 
+			Equal to the profile's integral.
+
+		rv : float
+			RV center of the profile. 
+
+		rvw : float
+			The vsini of the profile. 
+
+		o : float
+			The vertical offset of the profile. 
+
+		Returns
+		-------
+		prof_conv : array-like
+			The smoothed rotationally broadened profile specified by the
+			paramteres above, over the input x array. Array has the same 
+			length as x.
+
+	'''
+	FWHM = (2.997924*10**5)/R
+	sig = FWHM/(2.0*np.sqrt(2.0*np.log(2.0)))
+
+	def rot_pro_qip(x,A,rv,rvw,o):
+		'''
+		A thorough descrition of this function is provieded in the main 
+		function. 
+
+		Rotational line broadening function. 
+	
+		To produce an actual line profile, you have to convolve this function
+		with an acutal spectrum. 
+	
+		In this form it can be fit directly to a the Broadening Fucntion. 
+	
+		This is in velocity so if you're going to convolve this with a spectrum 
+		make sure to take the appropriate cautions.
+		'''
+
+		prof = A*((2.0*(1-a-b)*np.sqrt(1-((x-rv)/rvw)**2) + 
+		           np.pi*((a/2.0) + 2.0*b)*(1-((x-rv)/rvw)**2) - 
+		           (4.0/3.0)*b*(1-((x-rv)/rvw)**2)**(3.0/2.0)) / 
+		         (np.pi*(1-(a/3.0)-(b/6.0)))) + o
+		
+		prof[np.isnan(prof)] = o
+	
+		v_spacing = x[1]-x[0]
+	
+		smooth_sigma = sig/v_spacing
+	
+		prof_conv=gaussian_filter(prof,sigma=smooth_sigma)
+	
+		return prof_conv
+
+	return rot_pro_qip
+
+
 def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 	'''
 	A function to stitch together certain parts a specified 
@@ -820,7 +937,7 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 
 def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
     quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',
-    vel_spacing='orders'):
+    vel_spacing='uniform'):
 	'''
 	A function to prepare a target spectral dictionary with a template 
 	spectral dictionary for use with SAPHIRES analysis tools. The preparation

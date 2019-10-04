@@ -156,8 +156,8 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 	A function to combine BFs from different spectral orders, weighted 
 	by the standard deviation of the BF sideband. 
 
-	BF from different orders are intpolated to have the same velocity 
-	spacing and velocity coverage. 
+	BF can only be combined if you prepared the spectra using the option
+	vel_spacing="uniform", which is the default.
 
 	The STD of their sidebands (as determined with the std_perc or 
 	vel_gt_lt). A three is an optional sigma_clip parameter to remove 
@@ -200,10 +200,10 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 
 	Returns
     -------
-    v_resample : array-like
+    v : array-like
 		The velocity array of the weighted, combined BF.
 
-    bf_w4sc : array-like
+    bf_wsc : array-like
 		The weighted, combined BF. 
 
 	'''
@@ -224,23 +224,35 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 		v_spacing[i] = spectra[t_f_names[good_orders][i]]['vel_spacing']
 		v_max[i] = np.max(spectra[t_f_names[good_orders][i]]['vel'])
 
-	v_resample = np.linspace(-np.min(v_max), np.min(v_max), np.min(v_max)*2.0/np.min(v_spacing))
+	if np.unique(v_spacing). size > 1:
+		print('The different orders have BFs with different velocity spacings,')
+		print('re-prepare and compute your spectra using the vel_spacing="uniform" option.')
+		return
 
-	bfs = np.zeros([t_f_names[good_orders].size,v_resample.size])
+	if np.unique(v_spacing). size > 1:
+		print('The different orders have BFs that span different velocity ranges,')
+		print('re-prepare and compute your spectra using the vel_spacing="uniform" option.')
+		return
+
+	v = np.max(spectra[t_f_names[good_orders][0]]['vel'])
+	#v_resample = np.linspace(-np.min(v_max), np.min(v_max), np.min(v_max)*2.0/np.min(v_spacing))
+
+	bfs = np.zeros([t_f_names[good_orders].size,v.size])
 
 	stds = np.zeros(t_f_names[good_orders].size)
 
 	for i in range(t_f_names[good_orders].size):
-		bf_f = interpolate.interp1d(spectra[t_f_names[good_orders][i]]['vel'],spectra[t_f_names[good_orders][i]]['bf_smooth'])
-		bfs[i,:] = bf_f(v_resample)
+		#bf_f = interpolate.interp1d(spectra[t_f_names[good_orders][i]]['vel'],spectra[t_f_names[good_orders][i]]['bf_smooth'])
+		#bfs[i,:] = bf_f(v_resample)
+		bfs[i,:] = spectra[t_f_names[good_orders][i]]['bf_smooth']
 
 	#Weighted by standard deviation of sidebands (1/std**2)
 	weight = np.zeros(t_f_names[good_orders].size)
 	for i in range(t_f_names[good_orders].size):
 		if vel_gt_lt == None:
-			stds[i] = np.std([bfs[i,:][:np.int(v_resample.size*std_perc)], bfs[i,:][-np.int(v_resample.size*std_perc):]])
+			stds[i] = np.std([bfs[i,:][:np.int(v.size*std_perc)], bfs[i,:][-np.int(v.size*std_perc):]])
 		else:
-			stds[i] = np.std(bfs[i,:][(v_resample > vel_gt_lt[0]) | (v_resample < vel_gt_lt[1])])
+			stds[i] = np.std(bfs[i,:][(v > vel_gt_lt[0]) | (v < vel_gt_lt[1])])
 
 		weight[i] = 1.0/stds[i]**2
 
@@ -251,7 +263,7 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 
 	bf_wsc = np.sum(bfs[stdsc_mask]*weight[stdsc_mask][np.newaxis].T,axis=0) / np.sum(weight[stdsc_mask])
 
-	return v_resample,bf_wsc
+	return v,bf_wsc
 
 
 def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
