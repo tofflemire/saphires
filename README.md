@@ -35,7 +35,7 @@ There is also a utilities module (utils) that has some generally useful function
 
 ## Documentation
 
-See the [documentation](https://saphires.readthedocs.io/en/latest/index.html) for information on how to install and use The Joker.
+See the [documentation](https://saphires.readthedocs.io/en/latest/index.html) for information on how to install and use saphires.
 
 
 
