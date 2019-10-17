@@ -1,4 +1,4 @@
-### SAPHIRES
+# SAPHIRES
 SAPHIRES - Stellar Analysis in Python for HIgh REsolution Spectroscopy
 
 [![DOI](https://zenodo.org/badge/183699708.svg)](https://zenodo.org/badge/latestdoi/183699708)
