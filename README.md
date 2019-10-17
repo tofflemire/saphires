@@ -16,9 +16,9 @@ that don't typically have easily accessible python versions.
 
 It currently includes:
 
-- TODCOR (Two-Dimensional Cross Correlation)
-
 - Spectral-Line Broadening Functions
+
+- TODCOR (Two-Dimensional Cross Correlation)
 
 It will soon include the following tools:
 
