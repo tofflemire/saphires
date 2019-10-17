@@ -234,7 +234,7 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 		print('re-prepare and compute your spectra using the vel_spacing="uniform" option.')
 		return
 
-	v = np.max(spectra[t_f_names[good_orders][0]]['vel'])
+	v = spectra[t_f_names[good_orders][0]]['vel']
 	#v_resample = np.linspace(-np.min(v_max), np.min(v_max), np.min(v_max)*2.0/np.min(v_spacing))
 
 	bfs = np.zeros([t_f_names[good_orders].size,v.size])

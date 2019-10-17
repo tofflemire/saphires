@@ -1,35 +1,29 @@
-Welcome to SAPHIRES's documentation!
-====================================
+SAPHIRES Documentation
+**********************
 
-Another Simple Header
-=====================
-
-Here is some complicate text.
-
-    print 'hello'
-    >> hello
-
-
-Guide
-^^^^^
+Contents
+========
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+	:maxdepth: 2
 
-   license
-   help
+	intro
+	install
+	example
+	help
+	license
 
 
-Indices and tables
-==================
+
+
+
+
+
+
+
+Indecies and Search
+===================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-
-
-
-
-
