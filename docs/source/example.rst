@@ -68,8 +68,8 @@ To return their RVs type:
 
 .. code-block:: python
 
-	In [29]: tar_spec[tar[0]]['bf_rv']
-	Out[29]: array([ -11.0376132 , -106.44950092])
+	In [8]: tar_spec[tar[0]]['bf_rv']
+	Out[8]: array([ -11.0376132 , -106.44950092])
 
 The full fit parameters are stored in the tar_spec[tar[0]]['bf_fits'] array, which can be used to determine the flux ratio of the two stars (division of the BF fit integrals).
 
