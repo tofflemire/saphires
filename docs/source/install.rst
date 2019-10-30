@@ -1,7 +1,7 @@
 Installation
 ************
 
-SAPHIRES has the following third-party dependenceies:
+SAPHIRES has the following third-party dependencies:
 
 * matplotlib
 * numpy 

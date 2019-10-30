@@ -9,16 +9,10 @@ Contents
 
 	intro
 	install
+	bf_walkthrough
 	example
 	help
 	license
-
-
-
-
-
-
-
 
 
 Indecies and Search
