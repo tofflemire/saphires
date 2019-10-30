@@ -56,7 +56,7 @@ SAPHIRES also has a lot of useful utility functions:
 .. [#f1] `Rucinski (1999) <https://ui.adsabs.harvard.edu/abs/1999TJPh...23..271R/abstract>`_
 .. [#f2] `Rucinski's IDL implementation <http://www.astro.utoronto.ca/~rucinski/SVDcookbook.html>`_
 .. [#fa] `Cunningham et al. (2019) <https://ui.adsabs.harvard.edu/abs/2019AJ....158..106C/abstract>`_
-.. [#f3] Tofflemire, Mathieu, and Johns-Krull (2019) - submitted
+.. [#f3] `Tofflemire, Mathieu, and Johns-Krull (2019) <https://arxiv.org/abs/1910.12878>`_
 .. [#fb] `Tonry and Davis (1979) <https://ui.adsabs.harvard.edu/abs/1979AJ.....84.1511T/abstract>`_
 .. [#f4] `Zucker & Mazeh 1994 <https://ui.adsabs.harvard.edu/abs/1994ApJ...420..806Z/abstract>`_
 	
