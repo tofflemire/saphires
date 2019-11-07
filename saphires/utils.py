@@ -156,9 +156,7 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 		
 			f_out=f_shifted_f(w_unshifted)
 		
-			spectra_out[t_f_names[i]]['nflux'] = f_out
-	
-			w_range = spectra_out[t_f_names[i]]['w_region']
+			spectra_out[t_f_names[i]]['nflux'] = f_out	
 
 		if shift_style == 'basic':
 			w_unshifted = spectra_out[t_f_names[i]]['nwave']
@@ -166,6 +164,8 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 			w_shifted = w_unshifted/(1-(-rv_shift/(2.997924*10**5)))
 
 			spectra_out[t_f_names[i]]['nwave'] = w_shifted
+
+		w_range = spectra_out[t_f_names[i]]['w_region']
 
 		if w_range != '*':
 			w_split = np.empty(0)
