@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='saphires',
-      version='0.1.10',
+      version='0.1.11',
       description='Stellar Analysis in Python for HIgh-REsolution Spectroscopy',
       author='Ben Tofflemire',
       author_email='tofflemire@utexas.edu',
