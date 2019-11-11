@@ -1073,14 +1073,18 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		
 		w_temp,flux_temp = spec_trim(w_temp,flux_temp,w_range,temp_trim,trim_style=trim_style)
 		
-		min_w_orders[i] = np.max([np.min(w_tar),np.min(w_temp)])
-		max_w_orders[i] = np.min([np.max(w_tar),np.max(w_temp)])
+		if w_tar.size == 0:
+			min_w_orders[i] = np.nan
+			max_w_orders[i] = np.nan
+			min_dw_orders[i] = np.nan
+		else:
+			min_w_orders[i] = np.max([np.min(w_tar),np.min(w_temp)])
+			max_w_orders[i] = np.min([np.max(w_tar),np.max(w_temp)])
+			min_dw_orders[i]=np.min([temp_spec['ndw'],spectra[t_f_names[i]]['ndw']])
 	
-		min_dw_orders[i]=np.min([temp_spec['ndw'],spectra[t_f_names[i]]['ndw']])
-	
-	min_dw = np.min(min_dw_orders)
-	min_w = np.min(min_w_orders)
-	max_w = np.max(max_w_orders)
+	min_dw = np.nanmin(min_dw_orders)
+	min_w = np.nanmin(min_w_orders)
+	max_w = np.nanmax(max_w_orders)
 
 	if vel_spacing == 'uniform':
 		r = np.min(min_dw/max_w/oversample)
