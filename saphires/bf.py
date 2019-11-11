@@ -126,11 +126,21 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 		if (m/2.0 % 1) == 0:
 			m=m-1
 
+		if (spectra[t_f_names[inds[0]]]['vflux_temp'].size < m):
+			if quiet==False:
+				print(t_f_names[inds[0]],t_spectra[t_f_names[inds[0]]]['w_region'])
+				print("The target region is too small for the vel_width value.")
+				print(ww.size*spectra[t_f_names[inds[0]]]['vel_spacing'],' versus ', vel_width)
+				print("You can either reduce vel_width or remove this order from the input or don't worry about it.")
+				print(' ')
+			spectra[t_f_names[inds[0]]]['order_flag'] = 0
+			continue
+
 		des=utils.bf_map(spectra[t_f_names[inds[0]]]['vflux_temp'],m)
 		
 		u,ww,vt=np.linalg.svd(des, full_matrices=False)
 
-		if ww.size < m:
+		if (ww.size < m) | (spectra[t_f_names[inds[0]]]['vflux_temp'].size < m):
 			if quiet==False:
 				print(t_f_names[inds[0]],t_spectra[t_f_names[inds[0]]]['w_region'])
 				print("The target region is too small for the vel_width value.")
