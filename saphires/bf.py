@@ -108,12 +108,12 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 	w_unique = np.zeros(t_f_names.size,dtype='S200')
 
 	for i in range(t_f_names.size):
-		if type(spectra[t_f_names[i]]['nwave']) != float:
+		if type(spectra[t_f_names[i]]['vwave']) != float:
 
 			w_unique[i] = (np.str(np.min(spectra[t_f_names[i]]['nwave']))+' '+
 		    	           np.str(np.max(spectra[t_f_names[i]]['nwave']))+' '+
 		        	       np.str((spectra[t_f_names[i]]['nwave']).size))
-		if type(spectra[t_f_names[i]]['nwave']) == float:
+		if type(spectra[t_f_names[i]]['vwave']) == float:
 			w_unique[i] = '0'
 
 	w_unique_ind = np.unique(w_unique[w_unique!='0'])
