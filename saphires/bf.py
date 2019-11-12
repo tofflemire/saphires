@@ -394,7 +394,7 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 
 	for i in range(t_f_names.size):
 
-		if type(spectra[t_f_names[i]]['order_flag']) == 0:
+		if spectra[t_f_names[i]]['order_flag'] == 0:
 			t_f_ind[i] = False
 			continue
 
