@@ -222,7 +222,7 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 
 	good_orders = np.ones(t_f_names.size,dtype=bool)
 	for i in range(t_f_names.size):
-		if type(spectra[t_f_names[i]]['order_flag']) == 0:
+		if spectra[t_f_names[i]]['order_flag'] == 0:
 			good_orders[i] = False
 		if t_f_names[i] == 'Combined':
 			good_orders[i] = False
