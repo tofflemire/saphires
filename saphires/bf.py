@@ -423,14 +423,14 @@ def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
 			if prof == 'g':
 				func=utils.gaussian_off
 	
-				bounds = ([0.0001,rv_low,0.05,-1],[np.inf,rv_high,100,1])
+				bounds = ([0.0001,rv_low,0.05,-1],[np.inf,rv_high,200,1])
 
 				if p_rv == False:
 					gs_fit,gs_errors=curve_fit(func,vel[fit_trim:-fit_trim],bf_smooth[fit_trim:-fit_trim],
 					                           bounds=bounds)
 				else:
 					gs_fit,gs_errors=curve_fit(func,vel[fit_trim:-fit_trim],bf_smooth[fit_trim:-fit_trim],
-					                           bounds=bounds,p0=[0.1,p_rv,1,0])
+					                           bounds=bounds,p0=[0.1,p_rv,10,0])
 
 				fit_int = gs_fit[0]*gs_fit[2]*np.sqrt(2*np.pi)
 

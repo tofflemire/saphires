@@ -879,7 +879,7 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 	n_orders_out = np.int(n_orders/np.float(n_comb))
 
 	spectra_out = {}
-	t_f_names_out = np.zeros(n_orders_out,dtype='S1000')
+	t_f_names_out = np.zeros(n_orders_out,dtype=nplts+'1000')
 
 	for i in range(n_orders_out):
 		w_all = np.empty(0)
@@ -1353,7 +1353,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 	#------ Reading in region file --------------
 
 	if reg_file != None:
-		name,reg_order,w_string = np.loadtxt(reg_file,unpack=True,dtype='S100,i,S1000')
+		name,reg_order,w_string = np.loadtxt(reg_file,unpack=True,dtype=nplts+'100,i,'+nplts+'1000')
 
 	#----- Reading in and Formatiing ---------------	
 	if template == None:
@@ -1862,7 +1862,7 @@ def region_select_ms(target,template=None,tar_stretch=True,
 	#------ Reading in region file --------------
 
 	if reg_file != None:
-		name,reg_order,w_string = np.loadtxt(reg_file,unpack=True,dtype='S100,i,S1000')
+		name,reg_order,w_string = np.loadtxt(reg_file,unpack=True,dtype=nplts+'100,i,'+nplts+'1000')
 		if (name.size == 1): 
 			name=np.array([name])
 			reg_order=np.array([reg_order])
@@ -1882,7 +1882,11 @@ def region_select_ms(target,template=None,tar_stretch=True,
 
 	plt.ion()
 
-	i = 0 + jump_to
+	if reverse == False:
+		i = 0 + jump_to
+	if reverse == True:
+		i = order - jump_to - 1
+
 	while i < order:
 		if reverse == True:
 			i_ind = order-1-i
@@ -2067,11 +2071,12 @@ def region_select_ms(target,template=None,tar_stretch=True,
 						ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 
 			if reg_file != None:
-				if i in reg_order:
-					n_regions=len(str(w_string[i]).split('-'))-1
+				if i_ind in reg_order:
+					i_reg = np.where(reg_order == i_ind)[0][0]
+					n_regions=len(str(w_string[i_reg]).split('-'))-1
 					for j in range(n_regions):
-						w_reg_start = np.float(w_string[i].split(',')[j].split('-')[0])
-						w_reg_end = np.float(w_string[i].split(',')[j].split('-')[1])
+						w_reg_start = np.float(w_string[i_reg].split(',')[j].split('-')[0])
+						w_reg_end = np.float(w_string[i_reg].split(',')[j].split('-')[1])
 						ax[0].axvline(w_reg_start,ls='-',color='grey')
 						ax[0].axvline(w_reg_end,ls='--',color='grey')
 						ax[1].axvline(w_reg_start,ls='-',color='grey')
