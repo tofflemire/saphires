@@ -160,10 +160,14 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 			spectra[t_f_names[inds[j]]]['vel']=vel
 			spectra[t_f_names[inds[j]]]['bf_sig']=sig[m-1]
 
+			spectra[t_f_names[inds[j]]]['bf_matrix']=bf_sols
+			spectra[t_f_names[inds[j]]]['bf_sig_array']=sig
+
+
 	return spectra
 
 
-def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
+def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,sig_clip=True):
 	'''
 	A function to combine BFs from different spectral orders, weighted 
 	by the standard deviation of the BF sideband. 
@@ -261,10 +265,12 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=True):
 	#Weighted by standard deviation of sidebands (1/std**2)
 	weight = np.zeros(t_f_names[good_orders].size)
 	for i in range(t_f_names[good_orders].size):
-		if vel_gt_lt == None:
+		if ((bf_sig == False) & (vel_gt_lt == None)):
 			stds[i] = np.std([bfs[i,:][:np.int(v.size*std_perc)], bfs[i,:][-np.int(v.size*std_perc):]])
-		else:
+		if ((bf_sig == False) & (vel_gt_lt != None)):
 			stds[i] = np.std(bfs[i,:][(v > vel_gt_lt[0]) | (v < vel_gt_lt[1])])
+		if bf_sig == True:
+			stds[i] = spectra[t_f_names[good_orders][i]]['bf_sig']
 
 		weight[i] = 1.0/stds[i]**2
 
