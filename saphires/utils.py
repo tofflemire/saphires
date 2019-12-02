@@ -2123,6 +2123,10 @@ def region_select_ms(target,template=None,tar_stretch=True,
 					if j == len(l_range)-1:
 						out_range=out_range+str(l_range[j])
 				print(target,i_ind,out_range)
+			if (len(l_range) == 0) & (reg_file != None):
+				if i_ind in reg_order:
+					i_reg = np.where(reg_order == i_ind)[0][0]
+					print(target,i_ind,w_string[i_reg])
 	
 		fig.canvas.mpl_disconnect(cid)
 	

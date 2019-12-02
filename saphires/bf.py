@@ -92,6 +92,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 
 		['vel'] - Velocity array over which the BF is computed
 		['bf'] - The unsmoothed BF
+		['bf_sig'] - The sigma on the BF - proxy for error on the fit
 
 		It also updates the values for the following keyword under the right 
 		conditions:
@@ -157,6 +158,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 
 			spectra[t_f_names[inds[j]]]['bf']=bf_sols[m-1]
 			spectra[t_f_names[inds[j]]]['vel']=vel
+			spectra[t_f_names[inds[j]]]['bf_sig']=sig[m-1]
 
 	return spectra
 
