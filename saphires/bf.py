@@ -83,16 +83,33 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False):
     	there is not enough velocity space in the input spectra,this function 
     	will print and error. The default value is False.
 
+    matrix_out : bool
+    	Specifies whether the "lower order" BFs, those comprised of less 
+    	eigenvectors, and their assocaited weights should be returned in the
+    	output dictionary. This can be useful in some cases to help you determine
+    	the level of smoothing to use. It greatly inflated the size of the 
+    	dictionaries, and so it is left as a option to the user.
+    	The default is False, to not return this matrix. The matrix is 
+    	described in the Returns section below.
+
 	Returns
     -------
 	spectra : python dictionary
 		A python dictionary with the SAPHIRES architecture. The output dictionary
-		will have 2 new keywords as a result of this function. And is a copy of 
-		t_spec1.
+		will have 3 (or 5) new keywords as a result of this function. And is a copy 
+		of t_spectra.
 
 		['vel'] - Velocity array over which the BF is computed
-		['bf'] - The unsmoothed BF
+		['bf'] - The unsmoothed BF array
 		['bf_sig'] - The sigma on the BF - proxy for error on the fit
+		             (a single value)
+
+		If matrix_out == True
+		['bf_matrix'] - A matrix of the lower order BFs: each row is a BF made 
+						with an increasing numer of eigenvectors. The last 
+						element is provided inn the 'bf' keyword above.
+		['bf_sig_array'] - The sigma is the associated sig for each BF in the
+		                   matrix above (array)
 
 		It also updates the values for the following keyword under the right 
 		conditions:
@@ -168,7 +185,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False):
 	return spectra
 
 
-def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf_ind=False,sig_clip=True):
+def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf_ind=False,sig_clip=False):
 	'''
 	A function to combine BFs from different spectral orders, weighted 
 	by the standard deviation of the BF sideband. 
@@ -211,9 +228,17 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 		vel_gt_lt = (+35,-5). If this parameter is used, std_perc is ignored. 
 		The default value is None.
 
+	bf_sig : bool
+		Option to use the formal BF sigma (goodness of fit) as the weighting 
+		factor. The defalt is False
+
+	bf_ind : bool, int
+
+
 	sig_clip : bool
 		Option to perform a sigma clip on the measured standard deviation.
-		The default value is True.
+		The default value is False (if your weights make sense, you should not
+		need this step).
 
 	Returns
     -------
@@ -222,6 +247,15 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 
     bf_wsc : array-like
 		The weighted, combined BF. 
+
+	bf_wsc_sterr : float
+		The standard error derived from the weights. A single value that 
+		applied to all velocity elements of the combined BF array
+
+	bf_wsc_ewstd : array-like
+		The error-weighted standard deviation of the combined BF. An
+		array of the same length as v and bf_wsc
+
 
 	'''
 	t_f_names_out = copy.deepcopy(t_f_names)
@@ -286,8 +320,13 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 		stdsc_mask = np.ones(stds.size,dtype=bool)
 
 	bf_wsc = np.sum(bfs[stdsc_mask]*weight[stdsc_mask][np.newaxis].T,axis=0) / np.sum(weight[stdsc_mask])
+	
+	bf_wsc_sterr = 1.0 / np.sqrt(np.sum(weight[stdsc_mask]))
+	bf_wsc_ewstd = np.sqrt(np.sum(weight[stdsc_mask][np.newaxis].T*(bfs[stdsc_mask]-bf_wsc)**2,axis=0) /
+						   (np.sum(weight[stdsc_mask]*t_f_names[good_orders][stdsc_mask].size-1) / 
+						    t_f_names[good_orders][stdsc_mask].size))
 
-	return v,bf_wsc
+	return v,bf_wsc,bf_wsc_sterr,bf_wsc_ewstd
 
 
 def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
