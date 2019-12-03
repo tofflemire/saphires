@@ -34,7 +34,7 @@ import pickle as pkl
 from saphires import utils
 # ---- 
 
-def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
+def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False):
 	'''
 	Compute the spectral lines broadening function (BF) between a target and
 	template spectrum. 
@@ -160,14 +160,15 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False):
 			spectra[t_f_names[inds[j]]]['vel']=vel
 			spectra[t_f_names[inds[j]]]['bf_sig']=sig[m-1]
 
-			spectra[t_f_names[inds[j]]]['bf_matrix']=bf_sols
-			spectra[t_f_names[inds[j]]]['bf_sig_array']=sig
+			if matrix_out == True:
+				spectra[t_f_names[inds[j]]]['bf_matrix']=bf_sols
+				spectra[t_f_names[inds[j]]]['bf_sig_array']=sig
 
 
 	return spectra
 
 
-def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,sig_clip=True):
+def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf_ind=False,sig_clip=True):
 	'''
 	A function to combine BFs from different spectral orders, weighted 
 	by the standard deviation of the BF sideband. 
@@ -260,7 +261,10 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,si
 	for i in range(t_f_names[good_orders].size):
 		#bf_f = interpolate.interp1d(spectra[t_f_names[good_orders][i]]['vel'],spectra[t_f_names[good_orders][i]]['bf_smooth'])
 		#bfs[i,:] = bf_f(v_resample)
-		bfs[i,:] = spectra[t_f_names[good_orders][i]]['bf_smooth']
+		if bf_ind == False:
+			bfs[i,:] = spectra[t_f_names[good_orders][i]]['bf_smooth']
+		else:
+			bfs[i,:] = spectra[t_f_names[good_orders][i]]['bf_matrix'][bf_ind]
 
 	#Weighted by standard deviation of sidebands (1/std**2)
 	weight = np.zeros(t_f_names[good_orders].size)
@@ -271,6 +275,8 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,si
 			stds[i] = np.std(bfs[i,:][(v > vel_gt_lt[0]) | (v < vel_gt_lt[1])])
 		if bf_sig == True:
 			stds[i] = spectra[t_f_names[good_orders][i]]['bf_sig']
+		if bf_ind != False:
+			stds[i] = spectra[t_f_names[good_orders][i]]['bf_sig_array'][bf_ind]
 
 		weight[i] = 1.0/stds[i]**2
 
