@@ -125,7 +125,6 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 						  velocity space than is asked to compute.
 	'''
 	#########################################
-
 	spectra = copy.deepcopy(t_spectra)
 
 	#The following does a bit of logic to see it the function can save time
@@ -186,6 +185,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 
 	return spectra
 
+#skip
 def compute_helper(i,vel_width,spectra,t_f_names,matrix_out,return_value_dict):
 
 	m = np.int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
