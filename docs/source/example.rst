@@ -94,38 +94,46 @@ Now open your python REPL
 Mac OSX
 
 .. code-block:: python
+
    $ python3
 Windows
 
 .. code-block:: python
+
    $ python
 
 Now we will import saphires so we can use its functionality
 
 .. code-block:: python
+
 	import saphires as saph
 
 Here we are using the ls file (that splits up the wavelengths of the SALT fits into sub sections) to create a saphires spectra dictionary
 
 .. code-block:: python
+
 	tar,tar_spec = saph.io.read_ms('./salt1_rb.ls',combine_all=False,header_wave='Single')
 
 Next we read in the template from the pikl file
 
 .. code-block:: python
+
 	temp = saph.io.read_pkl('./lte05500-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes_2800-11000_air.p',temp=True)
 
 No we prepare the spectra with the template spectra
 
 .. code-block:: python
+
 	tar_spec = saph.utils.prepare(tar,tar_spec,temp)
 
 Here is where we do the broadening function calculations. Currently multiple_p is set to True, meaning the calculations will be done in a parallel fashion. This is going to speed up the calculation process(from 6 minutes to 4.5 minutes on my computer). If you are ok with the slower version, you can set multiple_p to False. No multiple processing will also prevent much lag on your machine while running the calculations.
 
 .. code-block:: python
+
 	tar_spec = saph.bf.compute(tar,tar_spec,vel_width=400,multiple_p = True)
 
 This is where we plot all the BF graphs, it should create a 110 page pdf in the same directory as the SALT files.
 
 .. code-block:: python
+
 	tar_spec = saph.bf.analysis(tar,tar_spec,R=50000,single_plot=True)
