@@ -82,14 +82,14 @@ Parallelizing BF calculations
 =============================
 
 
-Download the salt fits files and ls files from the repo (in the examples folder)
+Download the SALT fits files and ls files from the repo (in the examples folder).
 Create a new directory and move the downloaded files into it.
 
-The fits files are solar spectra taken by the SALT (South Africa Large Telescope). The files contain a total of 55 orders (wavelength sections) that will each be compared against the template spectra (lte055..... .p)
+The fits files are solar spectra taken by the SALT (South Africa Large Telescope). The files contain a total of 55 orders (wavelength sections) that will each be compared against the template spectra (filename = lte055..... .p)
 
-Our goal here is to establish the radial velocity of the star observed in the SALT spectra. We can do this by calculating a broadening function with each order against the template. You could average out the 55 radial velocity results to find a good estimated value, but in this example we just plot them all together in the same pdf.
+Our goal here is to establish the radial velocity of the star observed in the SALT spectra. We can do this by calculating a broadening function with each order against the template. You could average out the 55 radial velocity results, one from each order, to find a good estimated value, but in this example we just plot them all together in the same pdf.
 
-after pip installing saphires (if you dont have it) open a terminal and cd into the new directory with the SALT files
+After pip installing saphires (if you don't have it) open a terminal and cd into the new directory with the SALT files.
 Now open your python REPL
 Mac OSX
 
@@ -108,7 +108,7 @@ Now we will import saphires so we can use its functionality
 
 	import saphires as saph
 
-Here we are using the ls file (that splits up the wavelengths of the SALT fits into sub sections) to create a saphires spectra dictionary
+Here we are using the ls file (that splits up the wavelengths of the SALT fits file into sub sections) to create a saphires spectra dictionary
 
 .. code-block:: python
 
@@ -120,13 +120,13 @@ Next we read in the template from the pikl file
 
 	temp = saph.io.read_pkl('./lte05500-4.50-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes_2800-11000_air.p',temp=True)
 
-No we prepare the spectra with the template spectra
+Now we prepare the spectra with the template spectra
 
 .. code-block:: python
 
 	tar_spec = saph.utils.prepare(tar,tar_spec,temp)
 
-Here is where we do the broadening function calculations. Currently multiple_p is set to True, meaning the calculations will be done in a parallel fashion. This is going to speed up the calculation process(from 6 minutes to 4.5 minutes on my computer). If you are ok with the slower version, you can set multiple_p to False. No multiple processing will also prevent much lag on your machine while running the calculations.
+Here is where we do the broadening function calculations. Currently multiple_p is set to True, meaning the calculations will be done in a parallel fashion. This is going to speed up the calculation process(from 6 minutes to 4.5 minutes on my computer). If you are ok with the slower version, you can set multiple_p to False. Setting it to False will also prevent lag on your machine while running the calculations.
 
 .. code-block:: python
 
