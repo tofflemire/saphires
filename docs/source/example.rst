@@ -85,7 +85,7 @@ Why should I parallelize my BF calculations, the worked example above worked jus
 
 Don't get over-zealous though, parallelizing when you don't need to will actually slow down calculation times. There is an overhead involved in the spawning of processes, and retrieval of data from each process. So, if you only end up spawning two processes, the time saved on the calculations is overshadowed by the overhead of the multipleprocessing library. But, if you spawn more processes, you would actually see a timing improvement. In general, low-order spectra should be done sequentially whereas high-order spectra should be done parallel-ly.
 
-If you’re stressing about knowing when to use multiple processing and when not too, you can default to using it. In high-order cases, you are getting speed up. In low-order cases, you are being slowed down a little, but since you are still doing little amounts of calculations, the runtime won’t be an issue i.e. it may take 30 seconds sequentially, and 32 seconds parallel-ly for low-order.
+If you’re stressing about knowing when to use multiple processing and when not too, you can default to using it. In high-order cases, you are getting speed up. In low-order cases, you are being slowed down a little, but since you are still doing little amounts of calculations, the runtime won’t be an issue i.e. it may take 30 seconds sequentially, and 32 seconds in parallel for low-order.
 
 For our example, we will be using fits files from SALT (South Africa Large Telescope). These spectra have 55 orders. For our example we are comparing them against a template spectra found in the file named lte055.... .p.
 
