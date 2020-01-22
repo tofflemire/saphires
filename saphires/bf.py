@@ -35,7 +35,7 @@ import multiprocessing as mp
 from saphires import utils
 # ----
 
-def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, multiple_p = True):
+def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, multiple_p = False):
 	'''
 	Compute the spectral lines broadening function (BF) between a target and
 	template spectrum.
@@ -145,12 +145,25 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 	#Run through each spectrum requiring unique design matrix to compute the BF
 	if multiple_p == False:
 		for i in range(w_unique_ind.size):
+
 			m = np.int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
 			if (m/2.0 % 1) == 0:
 				m=m-1
 
+			print(t_f_names[i],m)
+
 			des=utils.bf_map(spectra[t_f_names[i]]['vflux_temp'],m)
 			u,ww,vt=np.linalg.svd(des, full_matrices=False)
+
+			if (ww.size < m) | (spectra[t_f_names[i]]['vflux_temp'].size < m):
+				if quiet==False:
+					print(t_f_names[i],t_spectra[t_f_names[i]]['w_region'])
+					print("The target region is too small for the vel_width value.")
+					print(ww.size*spectra[t_f_names[i]]['vel_spacing'],' versus ', vel_width)
+					print("You can either reduce vel_width or remove this order from the input or don't worry about it.")
+					print(' ')
+				spectra[t_f_names[i]]['order_flag'] = 0
+				continue
 
 			bf_sols,sig = utils.bf_solve(des,u,ww,vt,spectra[t_f_names[i]]['vflux'],m)
 
@@ -215,6 +228,7 @@ def compute_helper(i,vel_width,spectra,t_f_names,matrix_out,return_value_dict):
 	# if matrix_out == True:
 	#     spectra[t_f_names[i]]['bf_matrix']=bf_sols
 	#     spectra[t_f_names[i]]['bf_sig_array']=sig
+
 
 def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf_ind=False,sig_clip=False):
 	'''
@@ -288,7 +302,7 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 		array of the same length as v and bf_wsc
 
 
-	'''
+	'''	
 	t_f_names_out = copy.deepcopy(t_f_names)
 	spectra_out = copy.deepcopy(spectra)
 
@@ -360,9 +374,8 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 	return v,bf_wsc,bf_wsc_sterr,bf_wsc_ewstd
 
 
-def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,
-	text_out=False,text_name=False,single_plot=False,
-	p_rv=False,prof='g',R=50000.0,R_ip=50000.0,e=0.75):
+def analysis(t_f_names,t_spectra,sb='sb1',fit_trim=20,text_out=False,text_name=False,
+             single_plot=False,p_rv=False,prof='g',R=50000.0,R_ip=50000.0,e=0.75):
 	'''
 	A function to analyze broadening functions. This will smooth the
 	BF and attempt to fit a specified number of line profiles to it
