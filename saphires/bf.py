@@ -150,8 +150,6 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 			if (m/2.0 % 1) == 0:
 				m=m-1
 
-			print(t_f_names[i],m)
-
 			des=utils.bf_map(spectra[t_f_names[i]]['vflux_temp'],m)
 			u,ww,vt=np.linalg.svd(des, full_matrices=False)
 
