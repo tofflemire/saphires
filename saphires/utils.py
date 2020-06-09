@@ -40,6 +40,9 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import pickle as pkl
 import astropy.io.fits as pyfits
+from astropy.coordinates import SkyCoord, EarthLocation
+import astropy.units as u
+from astropy.time import Time
 # ---- 
 
 # ---- Project
@@ -538,6 +541,147 @@ def bf_text_output(ofname,target,template,gs_fit,rchis,rv_weight,fit_int):
 	return
 
 
+def brvc(dateobs,ra,dec,exptime,observat,rv=0.0,print_out=False):
+	'''
+	observat options:
+	- salt - (e.g. HRS)
+	- eso22 - (e.g. FEROS)
+	- vlt82 - (e.g. UVES)
+	- mcd27 - (e.g. IGRINS)
+	- lco_nres_lsc1 - (e.g. NRES at La Silla)
+	- lco_nres_cpt1 - (e.g. NRES at CTIO)
+	- tlv - (e.g. LCO NRES at Wise Observatory in Tel Aviv)
+	- eso36 - (e.g. HARPS)
+	- geminiS - (e.g. IGRINS South)
+	- wiyn - (e.g. HYDRA)
+	- dct - (e.g. IGRINS at DCT)
+	- hires - (Keck Hi-Res)
+	- smarts15 - (e.g. CHIRON)
+
+	returns
+	brv,bjd,bvcorr
+	'''
+
+	if isinstance(observat,str):
+		if isinstance(dateobs,str):
+			n_sites = 1
+			observat = [observat]
+			dateobs = [dateobs]
+			ra = [ra]
+			dec = [dec]
+			exptime = [exptime]
+			rv = [rv]
+		else:
+			n_sites = dateobs.size
+			observat = [observat]*dateobs.size
+	else:
+		n_sites = len(observat)
+
+	brv = np.zeros(n_sites)
+	bvcorr = np.zeros(n_sites)
+	bjd = np.zeros(n_sites)
+
+	for i in range(n_sites):
+		#longitudes are in degrees West
+		if observat[i] == 'hires':
+			alt = 4145
+			lat = 19.82636 
+			lon = -155.47501
+
+		if observat[i] == 'geminiS':
+			alt = 2722
+			lat = -30.240750
+			lon = -70.736693
+
+		if observat[i] == 'salt':
+			alt = 1798
+			lat = -32.3795
+			lon = 339.188
+	
+		if observat[i] == 'eso22':
+			alt = 2335
+			lat = -29.25428972
+			lon = 289.26540472
+	
+		if observat[i] == 'eso36':
+			alt = 2400
+			lat = -29.2584
+			lon = 289.2655
+	
+		if observat[i] == 'vlt82':
+			alt = 2635
+			lat = -24.622997508
+			lon = 289.59750161
+	
+		if observat[i] == 'mcd27':
+			alt = 2076
+			lat = 30.6798
+			lon = -104.0248
+	
+		if observat[i] == 'lco_nres_lsc1':
+			alt = 2201
+			lat = -30.1673305556
+			lon = 289.1953388889
+
+		if observat[i] == 'lco_nres_cpt1':
+			alt = 1760.0
+			lat = -32.3473416700
+			lon = 339.18996111
+	
+		if observat[i] == 'wiyn':
+			alt = 2120
+			lat = 31.95222
+			lon = 111.60000
+
+		if observat[i] == 'dct':
+			alt = 2360
+			lat = 34.744444
+			lon = 111.42194
+
+		if observat[i] == 'smarts15':
+			alt = 2217.6
+			lat = -30.169283
+			lon = 71.20733
+
+		if observat[i] == 'tlv':
+			alt = 875
+		 	lat = 30.595833
+		 	lon = 34.763333
+
+		loc = EarthLocation.from_geodetic(lat= lat*u.deg,lon=lon*u.deg,height=alt*u.m)
+	
+		if type(ra) == str:
+			ra,dec = sex2dd(ra,dec)
+	
+		sc = SkyCoord(ra=ra*u.deg,dec=dec*u.deg)
+	
+		utc=Time(dateobs[i],location=loc)
+	
+		utc_middle = utc + (exptime[i]/2.0)*u.s
+	
+		bvcorr[i] = sc.radial_velocity_correction(obstime=utc_middle).to(u.km/u.s).value
+	
+		ltt_bary = utc_middle.light_travel_time(sc)
+	
+		bjd[i] = (utc_middle+ltt_bary).jd
+		
+		if type(rv) == float:
+			brv[i] = rv + bvcorr[i] + (rv * bvcorr[i] / (2.9979245*10**5))
+		else:
+			brv[i] = rv[i] + bvcorr[i] + (rv[i] * bvcorr[i] / (2.9979245*10**5))
+
+
+		# Documenation describing how to correct and observed RV with a known BRVC
+		#http://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html#astropy.coordinates.SkyCoord.radial_velocity_correction
+
+	if print_out == True:
+		print('BJD:  ',bjd)
+		print('BRVC: ',bvcorr)
+		print('BRV:  ',brv)
+
+	return brv,bjd,bvcorr
+
+
 def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3):
 	'''
 	Continuum normalizes a spectrum
@@ -673,6 +817,51 @@ def gaussian_off(x,A,x0,sig,o):
     '''
 
     return A*np.e**(-(x-x0)**2/(2.0*sig**2))+o
+
+
+def lco2u(lco_fits,pkl_out,v2a=False):
+	'''
+	A function to read in the fits output from the standard 
+	LCO/NRES pipeline and turn it into a pkl file that 
+	matching the SAPHIRES architecture. 
+
+	Parameters
+	----------
+	lco_fits : str
+		The name of a single LCO fits file
+
+	pkl_out : str
+		The name of the output pickle file
+
+	v2a:
+		Option to convert the wavelength convention to air 
+		from the provided vacuum values.
+
+	Returns
+	-------
+	None
+
+	'''
+	hdu = pyfits.open(lco_fits)
+
+	flux = hdu[3].data
+	for i in range(flux.shape[0]):
+		flux[i] = flux[i]+np.abs(np.min(flux[i]))
+
+	w_vac = hdu[6].data*10
+
+	if v2a == True:
+		w_out = vac2air(w_vac)
+	else:
+		w_out = w_vac
+
+	dict = {'wav':w_out, 'flux':flux}
+
+	pkl.dump(dict,open(pkl_out,'wb'))
+
+	print("LCO pickle written out to "+pkl_out)
+
+	return
 
 
 def make_rot_pro_ip(R,e=0.75):
@@ -1382,6 +1571,12 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 
 	if (tar[dk_wav].ndim > 1):
 		order=tar[dk_wav].shape[0]
+
+	if reverse == False:
+		i = 0 + jump_to
+	if reverse == True:
+		i = order - jump_to - 1
+
 	#-------------------------------------------------
 
 	plt.ion()
@@ -1442,11 +1637,12 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 					ax[1].axvline(wh[j],ls=':',color='blue',alpha=r_alpha)
 
 		if reg_file != None:
-			if i in reg_order:
-				n_regions=len(str(w_string[i]).split('-'))-1
+			if i_ind in reg_order:
+				reg_ind = np.where(reg_order == i_ind)[0][0]
+				n_regions=len(str(w_string[reg_ind]).split('-'))-1
 				for j in range(n_regions):
-					w_reg_start = np.float(w_string[i].split(',')[j].split('-')[0])
-					w_reg_end = np.float(w_string[i].split(',')[j].split('-')[1])
+					w_reg_start = np.float(w_string[reg_ind].split(',')[j].split('-')[0])
+					w_reg_end = np.float(w_string[reg_ind].split(',')[j].split('-')[1])
 					ax[0].axvline(w_reg_start,ls='-',color='grey')
 					ax[0].axvline(w_reg_end,ls='--',color='grey')
 					ax[1].axvline(w_reg_start,ls='-',color='grey')
@@ -1495,6 +1691,11 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 						out_range=out_range+str(l_range[j])
 				print(target,i_ind,out_range)
 	
+			if (len(l_range) == 0) & (reg_file != None):
+				if i_ind in reg_order:
+					i_reg = np.where(reg_order == i_ind)[0][0]
+					print(target,i_ind,w_string[i_reg])
+
 		fig.canvas.mpl_disconnect(cid)
 	
 		plt.cla()
@@ -2135,6 +2336,77 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		plt.close()
         
 	return
+
+
+def sex2dd(ra,dec,results=False):
+    '''
+    Convert ra and dec in sexigesimal format to decimal degrees.
+
+    Parameters:
+    -----------
+    ra : ndarray; str
+        String sexigesimal RAs in the format 'HH:MM:SS.SS'. Can be an array of
+        RAs.
+
+    dec : ndarray; str
+        String sexigesimal Dec in format '+/-DD:MM:SS.SS'. Can be an array of
+        Decs.
+
+    Results : bool
+        If True, the decimal degree RA and Dec results are printed. 
+
+    Returns:
+    --------
+    radd : ndarray
+        Array of RAs in decimal degrees.
+
+    decdd : ndarray
+        Array of Decs in decimal degrees. 
+
+    Output:
+    -------
+    N/A
+
+    Version History:
+    ----------------
+    2015-05-15 - Start
+    2016-12-01 - Added the one-line for-loops that split up the strings so the 
+                 function could actually handle an array rather than single 
+                 values. 
+    '''
+    
+    
+    if type(ra) is np.ndarray:
+        rah=np.array([np.float(ra[d][0:2]) for d in range(ra.size)])
+        ram=np.array([np.float(ra[d][3:5]) for d in range(ra.size)])
+        ras=np.array([np.float(ra[d][6:]) for d in range(ra.size)])
+        decd=np.array([np.float(dec[d][0:3]) for d in range(ra.size)])
+        decm=np.array([np.float(dec[d][4:6]) for d in range(ra.size)])
+        decs=np.array([np.float(dec[d][7:]) for d in range(ra.size)])      
+        radd=((rah+ram/60.0+ras/3600.0)/24.0)*360.0
+        for i in range(decd.size):
+            if dec[i][0] == '+':
+                decdd=(decd+decm/60.0+decs/3600.0)
+            else:
+                decdd=-(np.abs(decd)+decm/60.0+decs/3600.0)
+
+    if type(ra) is str:
+        rah=np.array(np.float(ra[0:2]))
+        ram=np.array(np.float(ra[3:5]))
+        ras=np.array(np.float(ra[6:]))
+        decd=np.array(np.float(dec[0:3]))
+        decm=np.array(np.float(dec[4:6]))
+        decs=np.array(np.float(dec[7:]))
+        radd=((rah+ram/60.0+ras/3600.0)/24.0)*360.0
+        if dec[0] == '+':
+            decdd=(decd+decm/60.0+decs/3600.0)
+        else:
+            decdd=-(np.abs(decd)+decm/60.0+decs/3600.0)
+
+    if results == True:
+        print(radd,decdd)
+
+    return radd,decdd
 
 
 def sigma_clip(data, sig=3, iters=1, cenfunc=np.median, varfunc=np.var,maout=False):

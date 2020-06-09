@@ -21,4 +21,5 @@ setup(name='saphires',
                 'matplotlib',
                 'pickle',
                 'PyQt5',
-                'pdyl'])
+                'pdyl',
+                'multiprocessing'])

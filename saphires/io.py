@@ -326,7 +326,12 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 
 			if norm == True:
 				t_flux = t_flux / np.median(t_flux)
-				t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
+				if temp == False:
+					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
+				if temp == True:
+					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,
+					                         maxiter=10,lower=0.01,upper=10)
+
 
 			t_flux = 1.0 - t_flux
 
