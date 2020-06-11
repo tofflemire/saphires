@@ -43,6 +43,9 @@ import astropy.io.fits as pyfits
 from astropy.coordinates import SkyCoord, EarthLocation
 import astropy.units as u
 from astropy.time import Time
+from barycorrpy import utc_tdb
+from barycorrpy import get_BC_vel
+from astroquery.gaia import Gaia
 # ---- 
 
 # ---- Project
@@ -541,7 +544,8 @@ def bf_text_output(ofname,target,template,gs_fit,rchis,rv_weight,fit_int):
 	return
 
 
-def brvc(dateobs,ra,dec,exptime,observat,rv=0.0,print_out=False):
+def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
+         pmra=0,pmdec=0,px=0,query=False):
 	'''
 	observat options:
 	- salt - (e.g. HRS)
@@ -567,8 +571,6 @@ def brvc(dateobs,ra,dec,exptime,observat,rv=0.0,print_out=False):
 			n_sites = 1
 			observat = [observat]
 			dateobs = [dateobs]
-			ra = [ra]
-			dec = [dec]
 			exptime = [exptime]
 			rv = [rv]
 		else:
@@ -581,12 +583,14 @@ def brvc(dateobs,ra,dec,exptime,observat,rv=0.0,print_out=False):
 	bvcorr = np.zeros(n_sites)
 	bjd = np.zeros(n_sites)
 
+	#longitudes should be in degrees EAST!
+	#Most are not unless they have a comment below them.
 	for i in range(n_sites):
-		#longitudes are in degrees West
 		if observat[i] == 'hires':
 			alt = 4145
 			lat = 19.82636 
 			lon = -155.47501
+			#https://latitude.to/articles-by-country/us/united-states/7854/w-m-keck-observatory#:~:text=GPS%20coordinates%20of%20W.%20M.%20Keck,Latitude%3A%2019.8264%20Longitude%3A%20%2D155.4750
 
 		if observat[i] == 'geminiS':
 			alt = 2722
@@ -595,8 +599,9 @@ def brvc(dateobs,ra,dec,exptime,observat,rv=0.0,print_out=False):
 
 		if observat[i] == 'salt':
 			alt = 1798
-			lat = -32.3795
-			lon = 339.188
+			lat = -32.3794
+			lon = 20.810694
+			#http://www.sal.wisc.edu/~ebb/pfis/observer/intro.html
 	
 		if observat[i] == 'eso22':
 			alt = 2335
@@ -618,15 +623,16 @@ def brvc(dateobs,ra,dec,exptime,observat,rv=0.0,print_out=False):
 			lat = 30.6798
 			lon = -104.0248
 	
-		if observat[i] == 'lco_nres_lsc1':
+		if observat[i] == 'lsc':
 			alt = 2201
 			lat = -30.1673305556
 			lon = 289.1953388889
 
-		if observat[i] == 'lco_nres_cpt1':
+		if observat[i] == 'cpt':
 			alt = 1760.0
-			lat = -32.3473416700
-			lon = 339.18996111
+			lat = -32.34734167
+			lon = 20.81003889
+			#From a header
 	
 		if observat[i] == 'wiyn':
 			alt = 2120
@@ -644,35 +650,46 @@ def brvc(dateobs,ra,dec,exptime,observat,rv=0.0,print_out=False):
 			lon = 71.20733
 
 		if observat[i] == 'tlv':
-			alt = 875
-		 	lat = 30.595833
-		 	lon = 34.763333
+			alt = 861.4
+			lat = 30.595833
+			lon = 34.763333
+			#From a header
+	
+		if isinstance(ra,str):
+			ra,dec = saph.utils.sex2dd(ra,dec)
 
-		loc = EarthLocation.from_geodetic(lat= lat*u.deg,lon=lon*u.deg,height=alt*u.m)
-	
-		if type(ra) == str:
-			ra,dec = sex2dd(ra,dec)
-	
-		sc = SkyCoord(ra=ra*u.deg,dec=dec*u.deg)
-	
-		utc=Time(dateobs[i],location=loc)
-	
-		utc_middle = utc + (exptime[i]/2.0)*u.s
-	
-		bvcorr[i] = sc.radial_velocity_correction(obstime=utc_middle).to(u.km/u.s).value
-	
-		ltt_bary = utc_middle.light_travel_time(sc)
-	
-		bjd[i] = (utc_middle+ltt_bary).jd
-		
+		if query == True:
+			c = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs')
+			Pgaia = Gaia.cone_search_async(c, 3.0*u.arcsec)
+			if len(Pgaia.results) == 0:
+				print('No match found, using provided/default values.')
+			else:
+				dec = Pgaia.results['dec'][0]
+				ra = Pgaia.results['ra'][0]
+				epoch = Pgaia.results['ref_epoch'][0]
+				pmra = Pgaia.results['pmra'][0]
+				pmdec = Pgaia.results['pmdec'][0]
+				px = Pgaia.results['parallax'][0]
+
+		utc = Time(dateobs[i],format='isot',scale='utc')
+		utc_middle = utc + (exptime[i]/2.0)*u.second
+
+		bjd_info = utc_tdb.JDUTC_to_BJDTDB(JDUTC = utc_middle, alt = alt, 
+		                                   lat=lat, longi=lon, dec=dec, 
+		                                   ra=ra, epoch=epoch, pmra=pmra, 
+		                                   pmdec=pmdec, px=px)
+
+		bvcorr_info = get_BC_vel(JDUTC = utc_middle, ra=ra, dec=dec, epoch=epoch, 
+		                         pmra=pmra, pmdec=pmdec, px=px, lat=lat, longi=lon, 
+		                         alt=alt)
+
+		bjd[i] = bjd_info[0][0]
+		bvcorr[i] = bvcorr_info[0][0]/1000.0
+
 		if type(rv) == float:
 			brv[i] = rv + bvcorr[i] + (rv * bvcorr[i] / (2.9979245*10**5))
 		else:
 			brv[i] = rv[i] + bvcorr[i] + (rv[i] * bvcorr[i] / (2.9979245*10**5))
-
-
-		# Documenation describing how to correct and observed RV with a known BRVC
-		#http://docs.astropy.org/en/stable/api/astropy.coordinates.SkyCoord.html#astropy.coordinates.SkyCoord.radial_velocity_correction
 
 	if print_out == True:
 		print('BJD:  ',bjd)
