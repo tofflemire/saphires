@@ -553,7 +553,7 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 	- vlt82 - (e.g. UVES)
 	- mcd27 - (e.g. IGRINS)
 	- lco_nres_lsc1 - (e.g. NRES at La Silla)
-	- lco_nres_cpt1 - (e.g. NRES at CTIO)
+	- lco_nres_cpt1 - (e.g. NRES at SAAO)
 	- tlv - (e.g. LCO NRES at Wise Observatory in Tel Aviv)
 	- eso36 - (e.g. HARPS)
 	- geminiS - (e.g. IGRINS South)
@@ -593,9 +593,10 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			#https://latitude.to/articles-by-country/us/united-states/7854/w-m-keck-observatory#:~:text=GPS%20coordinates%20of%20W.%20M.%20Keck,Latitude%3A%2019.8264%20Longitude%3A%20%2D155.4750
 
 		if observat[i] == 'geminiS':
-			alt = 2722
-			lat = -30.240750
-			lon = -70.736693
+			alt = 2750
+			lat = -30.24074167
+			lon = -70.736683
+			#http://www.ctio.noao.edu/noao/content/coordinates-observatories-cerro-tololo-and-cerro-pachon
 
 		if observat[i] == 'salt':
 			alt = 1798
@@ -626,13 +627,14 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 		if observat[i] == 'lsc':
 			alt = 2201
 			lat = -30.1673305556
-			lon = 289.1953388889
+			lon = -70.8046611111
+			#From a header (CTIO)
 
 		if observat[i] == 'cpt':
 			alt = 1760.0
 			lat = -32.34734167
 			lon = 20.81003889
-			#From a header
+			#From a header (SAAO)
 	
 		if observat[i] == 'wiyn':
 			alt = 2120
@@ -645,15 +647,16 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			lon = 111.42194
 
 		if observat[i] == 'smarts15':
-			alt = 2217.6
-			lat = -30.169283
-			lon = 71.20733
+			alt = 2252.2
+			lat = -30.169661
+			lon = -70.806789
+			#http://www.ctio.noao.edu/noao/content/coordinates-observatories-cerro-tololo-and-cerro-pachon
 
 		if observat[i] == 'tlv':
 			alt = 861.4
 			lat = 30.595833
 			lon = 34.763333
-			#From a header
+			#From a header (WISE, Isreal)
 	
 		if isinstance(ra,str):
 			ra,dec = saph.utils.sex2dd(ra,dec)
