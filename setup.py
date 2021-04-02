@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='saphires',
-      version='0.1.12',
+      version='0.1.13',
       description='Stellar Analysis in Python for HIgh-REsolution Spectroscopy',
       author='Ben Tofflemire',
       author_email='tofflemire@utexas.edu',
@@ -22,4 +22,6 @@ setup(name='saphires',
                 'pickle',
                 'PyQt5',
                 'pdyl',
-                'multiprocessing'])
+                'multiprocessing',
+                'barycorrpy',
+                'astroquery'])

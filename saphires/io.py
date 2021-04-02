@@ -787,15 +787,22 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 		- If 'spl', unused regions will be interpolated over with a cubic 
 		  spline. You probably don't want to use this one.
 
-	header_wave : bool or 'Single'
-		Whether to assign the wavelength array from the header keywords or
-		from a separate fits extension. If True, it uses the header keywords,
-		assumiing they are linearly spaced. If False, it looks in the second 
-		fits extension, i.e. hdu[1].data
-		If header_wave is set to 'Single', it treats each fits extension like
-		single order fits file that could be read in with saph.io.read_fits. 
-		This feature is useful for SALT/HRS specrtra reduced with the MIDAS 
-		pipeline.
+	header_wave : bool or 'Single' or list of things
+		- Whether to assign the wavelength array from the header keywords or
+		  from a separate fits extension. If True, it uses the header keywords,
+		  assumiing they are linearly spaced. If False, it looks in the second 
+		  fits extension, i.e. hdu[1].data
+		- If header_wave is set to 'Single', it treats each fits extension like
+		  single order fits file that could be read in with saph.io.read_fits. 
+		  This feature is useful for SALT/HRS specrtra reduced with the MIDAS 
+		  pipeline.
+		- list of things option:
+		  e.g., header = [1,'WAVE','FLUX'] -- this is useful for ESO archive spectra
+		  The first entry is an int that correponds to the correct fits extension
+		  The second entry is the name of the wavelength data keyword
+		  The third entry is the name of the flux data keyword
+
+
 
     Returns
     -------
@@ -905,6 +912,17 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			z = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
 
 			t_w = ((np.arange(t_flux.size)*t_dw+w0)/(1+z))*w_mult
+
+		if type(header_wave) != bool:
+			if len(header_wave) == 3:
+				t_w = t_hdulist[header_wave[0]].data[header_wave[1]][0]
+				t_flux = t_hdulist[header_wave[0]].data[header_wave[2]][0]
+				t_dw = np.median(t_w - np.roll(t_w,1))
+
+		if header_wave == 'carmenes':
+			t_w = t_hdulist[4].data[order[i],:]
+			t_flux = t_hdulist[1].data[order[i],:]
+			t_dw = np.median(t_w - np.roll(t_w,1))
 
 		#get rid of nans
 		t_w=t_w[~np.isnan(t_flux)]

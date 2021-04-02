@@ -45,7 +45,7 @@ import astropy.units as u
 from astropy.time import Time
 from barycorrpy import utc_tdb
 from barycorrpy import get_BC_vel
-from astroquery.gaia import Gaia
+from astropy import constants as const
 # ---- 
 
 # ---- Project
@@ -143,6 +143,7 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 		['rv_shift'] - The value the spectrum was shifted in km/s
 
 	'''
+	c = const.c.to('km/s').value
 
 	spectra_out = copy.deepcopy(t_spectra)
 
@@ -150,7 +151,7 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 		if shift_style == 'inter':
 			w_unshifted = spectra_out[t_f_names[i]]['nwave']
 		
-			w_shifted = w_unshifted/(1-(-rv_shift/(2.997924*10**5)))
+			w_shifted = w_unshifted/(1-(-rv_shift/(c)))
 			
 			f_shifted_f = interpolate.interp1d(w_shifted,spectra_out[t_f_names[i]]['nflux'])
 		
@@ -167,7 +168,7 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 		if shift_style == 'basic':
 			w_unshifted = spectra_out[t_f_names[i]]['nwave']
 		
-			w_shifted = w_unshifted/(1-(-rv_shift/(2.997924*10**5)))
+			w_shifted = w_unshifted/(1-(-rv_shift/(c)))
 
 			spectra_out[t_f_names[i]]['nwave'] = w_shifted
 
@@ -180,7 +181,7 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 				for k in range(len(w_rc1[j].split(','))):
 					w_split = np.append(w_split,np.float(w_rc1[j].split(',')[k]))
 
-			w_split_shift = w_split/(1-(-rv_shift/(2.997924*10**5)))
+			w_split_shift = w_split/(1-(-rv_shift/(c)))
 
 			w_range_shift = ''
 			for j in range(w_split_shift.size):
@@ -566,6 +567,13 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 	brv,bjd,bvcorr
 	'''
 
+	c = const.c.to('km/s').value
+
+	from astroquery.vizier import Vizier  
+	edr3 = Vizier(columns=["*","+_r","_RAJ2000","_DEJ2000","Epoch","Plx"],catalog=['I/350/gaiaedr3'])
+
+	#from astroquery.gaia import Gaia
+	
 	if isinstance(observat,str):
 		if isinstance(dateobs,str):
 			n_sites = 1
@@ -586,13 +594,13 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 	#longitudes should be in degrees EAST!
 	#Most are not unless they have a comment below them.
 	for i in range(n_sites):
-		if observat[i] == 'hires':
+		if observat[i] == 'keck':
 			alt = 4145
 			lat = 19.82636 
 			lon = -155.47501
 			#https://latitude.to/articles-by-country/us/united-states/7854/w-m-keck-observatory#:~:text=GPS%20coordinates%20of%20W.%20M.%20Keck,Latitude%3A%2019.8264%20Longitude%3A%20%2D155.4750
 
-		if observat[i] == 'geminiS':
+		if observat[i] == 'gemini_south':
 			alt = 2750
 			lat = -30.24074167
 			lon = -70.736683
@@ -619,10 +627,11 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			lat = -24.622997508
 			lon = 289.59750161
 	
-		if observat[i] == 'mcd27':
-			alt = 2076
-			lat = 30.6798
-			lon = -104.0248
+		if observat[i] == 'mcdonald':
+			alt = 2075
+			lat = 30.6716667
+			lon = -104.0216667
+			#https://idlastro.gsfc.nasa.gov/ftp/pro/astro/observatory.pro
 	
 		if observat[i] == 'lsc':
 			alt = 2201
@@ -662,37 +671,53 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			ra,dec = saph.utils.sex2dd(ra,dec)
 
 		if query == True:
-			c = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs')
-			Pgaia = Gaia.cone_search_async(c, 3.0*u.arcsec)
-			if len(Pgaia.results) == 0:
+			coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs')
+			
+			result = edr3.query_region(coord,radius='0d0m3s')
+
+			#Pgaia = Gaia.cone_search_async(coord, 3.0*u.arcsec)
+			if len(result) == 0:
 				print('No match found, using provided/default values.')
 			else:
-				dec = Pgaia.results['dec'][0]
-				ra = Pgaia.results['ra'][0]
-				epoch = Pgaia.results['ref_epoch'][0]
-				pmra = Pgaia.results['pmra'][0]
-				pmdec = Pgaia.results['pmdec'][0]
-				px = Pgaia.results['parallax'][0]
+				dec = result['I/350/gaiaedr3']['DE_ICRS'][0]
+				ra = result['I/350/gaiaedr3']['RA_ICRS'][0]
+				epoch = result['I/350/gaiaedr3']['Epoch'][0]
+				pmra = result['I/350/gaiaedr3']["pmRA"][0]
+				pmdec = result['I/350/gaiaedr3']["pmDE"][0]
+				px = result['I/350/gaiaedr3']["Plx"][0]
 
-		utc = Time(dateobs[i],format='isot',scale='utc')
+		if isinstance(dateobs[i],str):
+			utc = Time(dateobs[i],format='isot',scale='utc')
+		if isinstance(dateobs[i],float):
+			utc = Time(dateobs[i],format='jd',scale='utc')
+
 		utc_middle = utc + (exptime[i]/2.0)*u.second
 
-		bjd_info = utc_tdb.JDUTC_to_BJDTDB(JDUTC = utc_middle, alt = alt, 
-		                                   lat=lat, longi=lon, dec=dec, 
-		                                   ra=ra, epoch=epoch, pmra=pmra, 
-		                                   pmdec=pmdec, px=px)
+		if observat in EarthLocation.get_site_names():
+			bjd_info = utc_tdb.JDUTC_to_BJDTDB(JDUTC = utc_middle, obsname=observat, 
+			                                   dec=dec, ra=ra, epoch=epoch, pmra=pmra, 
+		                                       pmdec=pmdec, px=px)
 
-		bvcorr_info = get_BC_vel(JDUTC = utc_middle, ra=ra, dec=dec, epoch=epoch, 
-		                         pmra=pmra, pmdec=pmdec, px=px, lat=lat, longi=lon, 
-		                         alt=alt)
+			bvcorr_info = get_BC_vel(JDUTC = utc_middle, ra=ra, dec=dec, epoch=epoch, 
+		                             pmra=pmra, pmdec=pmdec, px=px, obsname=observat)
+
+		else:
+			bjd_info = utc_tdb.JDUTC_to_BJDTDB(JDUTC = utc_middle, alt = alt, 
+		                                       lat=lat, longi=lon, dec=dec, 
+		                                       ra=ra, epoch=epoch, pmra=pmra, 
+		                                       pmdec=pmdec, px=px)
+
+			bvcorr_info = get_BC_vel(JDUTC = utc_middle, ra=ra, dec=dec, epoch=epoch, 
+		                         	 pmra=pmra, pmdec=pmdec, px=px, lat=lat, longi=lon, 
+		                         	 alt=alt)
 
 		bjd[i] = bjd_info[0][0]
 		bvcorr[i] = bvcorr_info[0][0]/1000.0
 
 		if type(rv) == float:
-			brv[i] = rv + bvcorr[i] + (rv * bvcorr[i] / (2.9979245*10**5))
+			brv[i] = rv + bvcorr[i] + (rv * bvcorr[i] / (c))
 		else:
-			brv[i] = rv[i] + bvcorr[i] + (rv[i] * bvcorr[i] / (2.9979245*10**5))
+			brv[i] = rv[i] + bvcorr[i] + (rv[i] * bvcorr[i] / (c))
 
 	if print_out == True:
 		print('BJD:  ',bjd)
@@ -764,6 +789,70 @@ def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3):
 
 	return f_norm
 
+def dd2sex(ra,dec,results=False):
+
+    '''
+    Convert ra and dec in decimal degrees format to sexigesimal format.
+
+    Parameters:
+    -----------
+    ra : ndarray
+        Array or single value of RA in decimal degrees.
+        
+    dec : ndarray
+        Array or single value of Dec in decimal degrees.
+
+    Results : bool
+        If True, the decimal degree RA and Dec results are printed. 
+
+    Returns:
+    --------
+    raho : ndarray
+        Array of RA hours.
+
+    ramo : ndarray
+        Array of RA minutes.
+
+    raso : ndarray
+        Array of RA seconds.
+
+    decdo : ndarray
+        Array of Dec degree placeholders in sexigesimal format.
+
+    decmo : ndarray
+        Array of Dec minutes.
+
+    decso : ndarray
+        Array of Dec seconds.
+
+    Output:
+    -------
+    Prints results to terminal if results == True.
+
+    Version History:
+    ----------------
+    2015-05-15 - Start
+    '''
+
+    rah=(np.array([ra])/360.0*24.0)
+    raho=np.array(rah,dtype=np.int)
+    ramo=np.array(((rah-raho)*60.0),dtype=np.int)
+    raso=((rah-raho)*60.0-ramo)*60.0
+    dec=np.array([dec])
+    dec_sign = np.sign(dec)
+    decdo=np.array(dec,dtype=np.int)
+    decmo=np.array(np.abs(dec-decdo)*60,dtype=np.int)
+    decso=(np.abs(dec-decdo)*60-decmo)*60.0
+
+    if results == True:
+        for i in range(rah.size):
+            print(np.str(raho[i])+':'+np.str(ramo[i])+':'+ \
+                (str.format('{0:2.6f}',raso[i])).zfill(7)+', '+ \
+                np.str(decdo[i])+':'+np.str(decmo[i])+':'+ \
+                (str.format('{0:2.6f}',decso[i])).zfill(7))
+
+    return raho,ramo,raso,dec_sign,decdo,decmo,decso
+
 
 def d_gaussian_off(x,A1,x01,sig1,A2,x02,sig2,o):
     '''
@@ -805,6 +894,55 @@ def d_gaussian_off(x,A1,x01,sig1,A2,x02,sig2,o):
     return (A1*np.e**(-(x-x01)**2/(2.0*sig1**2))+
             A2*np.e**(-(x-x02)**2/(2.0*sig2**2))+o)
 
+
+def EWM(x,xerr,wstd=False):
+    '''
+    A function to return the error weighted mean of an array and the error on
+    the error weighted mean. 
+
+    Parameters
+    ----------
+    x : array like
+       An array of values you want the error weighted mean of. 
+
+    xerr : array like
+       Array of associated one-sigma errors. 
+
+    wstd : bool
+        Option to return the error weighted standard deviation. If True, 
+        three values are returned. The default is False.
+       
+    Returns
+    -------
+    xmean : float
+       The error weighted mean 
+    
+    xmeanerr : float
+        The error on the error weighted mean. This number will only make
+        sense if the input xerr is a 1-sigma uncertainty.
+
+    xmeanstd : conditional output, float
+        Error weighted standard deviation, only output if wstd=True
+
+    Outputs
+    -------
+    None
+
+    Version History
+    ---------------
+    2016-12-06 - Start
+    '''
+    weight = 1.0 / xerr**2
+    xmean=np.sum(x/xerr**2)/np.sum(weight)
+    xmeanerr=1.0/np.sqrt(np.sum(weight))
+
+    xwstd = np.sqrt(np.sum(weight*(x - xmean)**2) / ((np.sum(weight)*(x.size-1)) / x.size))
+
+    if wstd == True:
+        return xmean,xmeanerr,xwstd
+    else:
+        return xmean,xmeanerr
+        
 
 def gaussian_off(x,A,x0,sig,o):
     '''
@@ -941,7 +1079,9 @@ def make_rot_pro_ip(R,e=0.75):
 			length as x.
 
 	'''
-	FWHM = (2.997924*10**5)/R
+	c = const.c.to('km/s').value
+
+	FWHM = (c)/R
 	sig = FWHM/(2.0*np.sqrt(2.0*np.log(2.0)))
 
 	def rot_pro_ip(x,A,rv,rvw,o):
@@ -1035,7 +1175,9 @@ def make_rot_pro_qip(R,a=0.3,b=0.4):
 			length as x.
 
 	'''
-	FWHM = (2.997924*10**5)/R
+	c = const.c.to('km/s').value
+
+	FWHM = (c)/R
 	sig = FWHM/(2.0*np.sqrt(2.0*np.log(2.0)))
 
 	def rot_pro_qip(x,A,rv,rvw,o):
@@ -1263,6 +1405,8 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 	#########################################
 	#This part "prepares" the spectra
 
+	c = const.c.to('km/s').value
+
 	spectra = copy.deepcopy(t_spectra)
 
 	max_w_orders = np.zeros(t_f_names.size)
@@ -1298,11 +1442,11 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 	if vel_spacing == 'uniform':
 		r = np.min(min_dw/max_w/oversample)
 		#velocity spacing in km/s
-		stepV=r*2.997924*10**5
+		stepV=r*c
 
 	if ((type(vel_spacing) == float) or (type(vel_spacing) == 'numpy.float64')):
 		stepV = vel_spacing
-		r = stepV / (2.997924*10**5)
+		r = stepV / (c)
 		min_dw = r * max_w
 
 	for i in range(t_f_names.size):
@@ -1357,7 +1501,7 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 			r = min_dw/max_w/oversample 
 	
 			#velocity spacing in km/s
-			stepV = r * 2.997924*10**5
+			stepV = r * c
 		
 		#the largest array length between target and spectrum
 		#conditional below makes sure it is even
