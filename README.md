@@ -8,7 +8,7 @@ SAPHIRES - Stellar Analysis in Python for HIgh REsolution Spectroscopy
 
 `pip install saphires`
 
-(Only compatible with Python 3.)
+(Only compatible with Python 3.) 
 
 ## Description
 
