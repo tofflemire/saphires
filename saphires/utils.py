@@ -633,27 +633,15 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			lon = -104.0216667
 			#https://idlastro.gsfc.nasa.gov/ftp/pro/astro/observatory.pro
 	
-		if observat[i] == 'lsc':
-			alt = 2201
-			lat = -30.1673305556
-			lon = -70.8046611111
-			#From a header (CTIO)
-
-		if observat[i] == 'cpt':
-			alt = 1760.0
-			lat = -32.34734167
-			lon = 20.81003889
-			#From a header (SAAO)
-	
 		if observat[i] == 'wiyn':
 			alt = 2120
 			lat = 31.95222
-			lon = 111.60000
+			lon = -111.60000
 
 		if observat[i] == 'dct':
 			alt = 2360
 			lat = 34.744444
-			lon = 111.42194
+			lon = -111.42194
 
 		if observat[i] == 'smarts15':
 			alt = 2252.2
@@ -661,11 +649,35 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			lon = -70.806789
 			#http://www.ctio.noao.edu/noao/content/coordinates-observatories-cerro-tololo-and-cerro-pachon
 
+		if observat[i] == 'lsc':
+			alt = 2201
+			lat = -30.1673305556
+			lon = -70.8046611111
+			#From a header (CTIO - LCO)
+
+		if observat[i] == 'cpt':
+			alt = 1760.0
+			lat = -32.34734167
+			lon = 20.81003889
+			#From a header (SAAO - LCO)
+
 		if observat[i] == 'tlv':
 			alt = 861.4
 			lat = 30.595833
 			lon = 34.763333
-			#From a header (WISE, Isreal)
+			#From a header (WISE, Isreal - LCO)
+
+		if observat[i] == 'elp':
+			alt = 2030.000
+			lat = 30.6798330
+			lon = -104.0151730
+			#From a header (McDonald - LCO)
+
+		if observat[i] == 'coj':
+			alt = 1168.000
+			lat = -31.2729330
+			lon = 149.0706470
+			#From a header (Siding Springs Observatory - LCO)
 	
 		if isinstance(ra,str):
 			ra,dec = saph.utils.sex2dd(ra,dec)
