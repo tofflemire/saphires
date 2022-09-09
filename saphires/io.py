@@ -78,7 +78,8 @@ if py_version == 2:
 #[4] - ['w_region'] wavelength region
 
 def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
-    trim_style='clip',norm_w_width=200.0,dk_wav='wav',dk_flux='flux'):
+    trim_style='clip',dk_wav='wav',dk_flux='flux',
+	norm_w_width=200.0,norm_maxiter=15,norm_lower=0.3,norm_upper=2.0,norm_nord=3):
 	'''
 	A function to read in a target spectrum, list of target spectra, or 
 	template spectrum from a pickle dictionary with specific keywords, and 
@@ -327,10 +328,11 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 			if norm == True:
 				t_flux = t_flux / np.median(t_flux)
 				if temp == False:
-					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
+					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
+			                         		 lower=norm_lower,upper=norm_upper,nord=norm_nord)
 				if temp == True:
-					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,
-					                         maxiter=10,lower=0.01,upper=10)
+					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
+			                         		 lower=norm_lower,upper=norm_upper,nord=norm_nord)
 
 
 			t_flux = 1.0 - t_flux
@@ -398,7 +400,8 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 
 
 def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
-    norm_w_width=200.0,trim_style='clip'):
+    trim_style='clip',
+	norm_w_width=200.0,norm_maxiter=15,norm_lower=0.3,norm_upper=2.0,norm_nord=3):
 	'''
 	A function to read in a target spectrum, list of target spectra, or a 
 	template spectrum from an IRAF friendly fits file with a single order, 
@@ -586,7 +589,9 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 
 		if norm == True:
 			t_flux = t_flux / np.median(t_flux)
-			t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
+			t_flux = utils.cont_norm(t_w,t_flux,
+			                         w_width=norm_w_width,maxiter=norm_maxiter,
+			                         lower=norm_lower,upper=norm_upper,nord=norm_nord)
 
 		#inverted spectrum
 		t_flux=1.0-t_flux
@@ -658,7 +663,8 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 
 
 def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
-    norm_w_width=200.0,trim_style='clip',header_wave=False):
+    trim_style='clip',header_wave=False,
+    norm_w_width=200.0,norm_maxiter=15,norm_lower=0.3,norm_upper=2.0,norm_nord=3):
 	'''
 	A function to read in a target spectrum, list of target spectra, or a
 	template spectrum from an IRAF friendly multi-extension fits file, and 
@@ -924,6 +930,18 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			t_flux = t_hdulist[1].data[order[i],:]
 			t_dw = np.median(t_w - np.roll(t_w,1))
 
+		if header_wave == 'igrins_tell':
+			t_flux = t_hdulist[3].data[order[i]]
+			
+			t_w = t_hdulist[1].data[order[i]]*w_mult
+			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
+
+		if header_wave == 'igrins_tell_self':
+			t_flux = t_hdulist[2].data[order[i]]
+			
+			t_w = t_hdulist[1].data[order[i]]*w_mult
+			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
+
 		#get rid of nans
 		t_w=t_w[~np.isnan(t_flux)]
 		t_flux=t_flux[~np.isnan(t_flux)]
@@ -932,7 +950,8 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 		
 		if norm == True:
 			t_flux = t_flux / np.median(t_flux)
-			t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
+			t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
+			                         lower=norm_lower,upper=norm_upper,nord=norm_nord)
 
 		#inverted spectrum
 		t_flux=1.0-t_flux
@@ -1004,7 +1023,7 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 
 
 def read_vars(w,f,name,w_file=None,temp=False,combine_all=True,norm=True,w_mult=1.0,
-    trim_style='clip',norm_w_width=200.0):
+    trim_style='clip',norm_w_width=200.0,norm_maxiter=15,norm_lower=0.3,norm_upper=2.0,norm_nord=3):
 	'''
 	A function to read in a target spectrum or template spectrum from 
 	predefined python arrays and put them into the SAPHIRES data structure.
@@ -1205,7 +1224,8 @@ def read_vars(w,f,name,w_file=None,temp=False,combine_all=True,norm=True,w_mult=
 
 		if norm == True:
 			t_flux = t_flux / np.median(t_flux)
-			t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width)
+			t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
+			                         lower=norm_lower,upper=norm_upper,nord=norm_nord)
 
 		t_flux = 1.0 - t_flux
 

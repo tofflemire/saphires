@@ -153,10 +153,15 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		float. The default value is True.
 
 	guess : bool; array-like
-		Whether to run todcor in the interactive mode. If False, todcor is 
-		run in the interactive mode where you choose the best peak. The 
-		alternative options is a two element array that give a guess for the 
-		primary and secondary velocities. The default value is False. 
+		How to pick the peak to fit: 
+		guess = False:
+			launch interactive mode where you pick the best peak by hand.
+		guess = (rv1,rv2)
+			Run the code without user intevention if you already know where 
+			the rvs should be.
+		guess = True:
+			The code guesses by choosing the highest global peak.
+		The default value is False. 
 
     results : bool
     	Option to plot a zoom in of the peak stamp with the best fit peak 
@@ -313,9 +318,17 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		
 			plt.close()
 
-		else:
+		if guess == True:
+			ind1 = np.where(tod == np.max(tod))[0][0]
+			ind2 = np.where(tod == np.max(tod))[1][0]
+
+			vel_guess = (c2_v[ind2],c1_v[ind1])
+
+		if type(guess) == tuple:
 			vel_guess = guess
 		
+		print('Velocity Guesses:',vel_guess)
+
 		#Indecies for the center of the fitting stamp location
 		pg_ind=np.where(np.abs(c1_v - vel_guess[0]) == np.min(np.abs(c1_v - vel_guess[0])))[0][0]
 		sg_ind=np.where(np.abs(c2_v - vel_guess[1]) == np.min(np.abs(c2_v - vel_guess[1])))[0][0]
@@ -434,5 +447,176 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 
 	plt.ioff()
 	return spectra
+
+
+def ccf(t_f_names,t_spec1,vel_width=200.0):
+
+	spectra = copy.deepcopy(t_spec1)
+
+	for k in range(t_f_names.size):
+		
+		v_spacing1 = t_spec1[t_f_names[k]]['vel_spacing']
+		
+		m = np.int(vel_width / v_spacing1)
+
+		if (m/2.0 % 1) == 0:
+			m=m-1
+
+		f_s = t_spec1[t_f_names[k]]['vflux']
+		f_t1 = t_spec1[t_f_names[k]]['vflux_temp']
+
+		if f_s.size < m:
+			if quiet == False:
+				print(t_f_names[k],t_spectra[t_f_names[k]]['w_region'])
+				print("The target mask region is smaller for the m value.")
+				print(w1t.size,'versus',m)
+				print("You can either reduce the vel_width, or remove this order from the input,")
+				print("or don't worry about it.")
+				print(' ')
+			spectra[t_f_names[k]]['vwave'] = 0.0	
+			spectra[t_f_names[k]]['order_flag'] = 0
+			continue
+
+		c1,c1_v = utils.spec_ccf(f_s,f_t1,m,v_spacing1) # The Primary CCF
+
+		spectra[t_f_names[k]]['ccf'] = c1
+		spectra[t_f_names[k]]['vel'] = c1_v
+
+	return spectra
+
+
+def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=False):
+	'''
+	A function to combine ccfs from different spectral orders, weighted
+	by the standard deviation of the ccf sideband.
+
+	CCFs can only be combined if you prepared the spectra using the option
+	vel_spacing="uniform", which is the default.
+
+	The STD of their sidebands (as determined with the std_perc or
+	vel_gt_lt). A three is an optional sigma_clip parameter to remove
+	huge outliers.
+
+	The surviving CCFs are combined, weighted by the sideband STD.
+
+	Parameters
+	----------
+	t_f_names: array-like
+		Array of keywords for a science spectrum SAPHIRES dictionary. Output of
+		one of the saphires.io read-in functions.
+
+	t_spectra : python dictionary
+		SAPHIRES dictionary for the science spectrum that has been prepared with
+		the utils.prepare function with a template spectrum.
+
+	std_perc : float
+		Defines the sideband region to determine each order's weight.
+		The value is the percentage of the velocity space, over which the entire
+		CCF was computed, to be used to measure the sideband standard deviation,
+		evaluated from each end. For example, if std_perc = 0.1 (i.e. 10%), and
+		the CCF was computed over +/- 200 km/s (400 km/s total), a 40 km/s region
+		on either end of the CCF will be used to determine the order standard
+		deviation.
+		This option is nice when your features are centered near zero velocity.
+		An alternative options is available with the vel_gt_lt parameter.
+		The default value if 0.1
+
+	vel_gt_lt : array-like
+		A two element array providing the upper and lower limit of the velocity
+		array over which the CCF standard deviation is computed. For example, if
+		your feature is at +10 km/s and is 20 km/s wide, you could enter
+		vel_gt_lt = (+35,-5). If this parameter is used, std_perc is ignored.
+		The default value is None.
+
+	sig_clip : bool
+		Option to perform a sigma clip on the measured standard deviation.
+		The default value is False (if your weights make sense, you should not
+		need this step).
+
+	Returns
+	-------
+	v : array-like
+		The velocity array of the weighted, combined CCF.
+
+	ccf_wsc : array-like
+		The weighted, combined CCF.
+
+	ccf_wsc_sterr : float
+		The standard error derived from the weights. A single value that
+		applied to all velocity elements of the combined CCF array
+
+	ccf_wsc_ewstd : array-like
+		The error-weighted standard deviation of the combined CCF. An
+		array of the same length as v and ccf_wsc
+
+
+	'''	
+	t_f_names_out = copy.deepcopy(t_f_names)
+	spectra_out = copy.deepcopy(spectra)
+
+	good_orders = np.ones(t_f_names.size,dtype=bool)
+	for i in range(t_f_names.size):
+		if spectra[t_f_names[i]]['order_flag'] == 0:
+			good_orders[i] = False
+		if t_f_names[i] == 'Combined':
+			good_orders[i] = False
+
+	v_spacing = np.zeros(t_f_names[good_orders].size)
+	v_max = np.zeros(t_f_names[good_orders].size)
+
+	for i in range(t_f_names[good_orders].size):
+		v_spacing[i] = spectra[t_f_names[good_orders][i]]['vel_spacing']
+		v_max[i] = np.max(spectra[t_f_names[good_orders][i]]['vel'])
+
+	if np.unique(v_spacing). size > 1:
+		print('The different orders have CCFs with different velocity spacings,')
+		print('re-prepare and compute your spectra using the vel_spacing="uniform" option.')
+		return
+
+	if np.unique(v_spacing). size > 1:
+		print('The different orders have CCFs that span different velocity ranges,')
+		print('re-prepare and compute your spectra using the vel_spacing="uniform" option.')
+		return
+
+	v = spectra[t_f_names[good_orders][0]]['vel']
+	#v_resample = np.linspace(-np.min(v_max), np.min(v_max), np.min(v_max)*2.0/np.min(v_spacing))
+
+	ccfs = np.zeros([t_f_names[good_orders].size,v.size])
+
+	stds = np.zeros(t_f_names[good_orders].size)
+
+	for i in range(t_f_names[good_orders].size):
+		#bf_f = interpolate.interp1d(spectra[t_f_names[good_orders][i]]['vel'],spectra[t_f_names[good_orders][i]]['bf_smooth'])
+		#bfs[i,:] = bf_f(v_resample)
+		ccfs[i,:] = spectra[t_f_names[good_orders][i]]['ccf']
+		
+	#Weighted by standard deviation of sidebands (1/std**2)
+	weight = np.zeros(t_f_names[good_orders].size)
+	for i in range(t_f_names[good_orders].size):
+		if (vel_gt_lt == None):
+			stds[i] = np.std([ccfs[i,:][:np.int(v.size*std_perc)], ccfs[i,:][-np.int(v.size*std_perc):]])
+		if (vel_gt_lt != None):
+			stds[i] = np.std(ccfs[i,:][(v > vel_gt_lt[0]) | (v < vel_gt_lt[1])])
+
+		weight[i] = 1.0/stds[i]**2
+
+	if sig_clip == True:
+		stdsc,stdsc_mask = utils.sigma_clip(stds,sig=3,iters=100)
+	else:
+		stdsc_mask = np.ones(stds.size,dtype=bool)
+
+	ccf_wsc = np.sum(ccfs[stdsc_mask]*weight[stdsc_mask][np.newaxis].T,axis=0) / np.sum(weight[stdsc_mask])
+
+	ccf_wsc_sterr = 1.0 / np.sqrt(np.sum(weight[stdsc_mask]))
+	ccf_wsc_ewstd = np.sqrt(np.sum(weight[stdsc_mask][np.newaxis].T*(ccfs[stdsc_mask]-ccf_wsc)**2,axis=0) /
+						   (np.sum(weight[stdsc_mask]*t_f_names[good_orders][stdsc_mask].size-1) /
+							t_f_names[good_orders][stdsc_mask].size))
+
+	return v,ccf_wsc,ccf_wsc_sterr,ccf_wsc_ewstd
+
+
+
+
+
 
 

@@ -32,20 +32,30 @@ from datetime import datetime
 
 # ---- Third Party
 import numpy as np
+
 from scipy import interpolate
 from scipy.ndimage.filters import gaussian_filter
+from scipy.optimize import curve_fit
+
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+
 import pickle as pkl
+
 import astropy.io.fits as pyfits
 from astropy.coordinates import SkyCoord, EarthLocation
 import astropy.units as u
 from astropy.time import Time
+from astropy import constants as const
+
 from barycorrpy import utc_tdb
 from barycorrpy import get_BC_vel
-from astropy import constants as const
+
+import emcee
+
+import corner
 # ---- 
 
 # ---- Project
@@ -60,6 +70,7 @@ if py_version == 2:
 	nplts = 'S' #the numpy letter for a string
 	p_input = raw_input
 
+np.seterr(invalid='ignore')
 
 def air2vac(w_air):
 	'''
@@ -616,16 +627,19 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			alt = 2335
 			lat = -29.25428972
 			lon = 289.26540472
+			#FEROS Header
 	
 		if observat[i] == 'eso36':
 			alt = 2400
 			lat = -29.2584
-			lon = 289.2655
+			lon = 289.2565
+			#HARPS - from a header
 	
 		if observat[i] == 'vlt82':
 			alt = 2635
-			lat = -24.622997508
-			lon = 289.59750161
+			lat = -24.6272
+			lon = -70.4048
+			#UVES HEAEDER
 	
 		if observat[i] == 'mcdonald':
 			alt = 2075
@@ -642,6 +656,7 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			alt = 2360
 			lat = 34.744444
 			lon = -111.42194
+			#https://en.wikipedia.org/wiki/Lowell_Discovery_Telescope
 
 		if observat[i] == 'smarts15':
 			alt = 2252.2
@@ -678,9 +693,17 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			lat = -31.2729330
 			lon = 149.0706470
 			#From a header (Siding Springs Observatory - LCO)
+
+		if observat[i] == 'tres':
+			alt = 2320.0
+			lat = 31.68094444
+			lon = -110.8775
+			#From a TRES header 
+			#1.5-meter Tillinghast telescope at the Smithsonian Astrophysical Observatory's Fred L. Whipple Observatory on Mt. Hopkins in Arizona
+
 	
 		if isinstance(ra,str):
-			ra,dec = saph.utils.sex2dd(ra,dec)
+			ra,dec = sex2dd(ra,dec)
 
 		if query == True:
 			coord = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs')
@@ -690,6 +713,10 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 			#Pgaia = Gaia.cone_search_async(coord, 3.0*u.arcsec)
 			if len(result) == 0:
 				print('No match found, using provided/default values.')
+				epoch = 2000
+				pmra = None
+				pmdec = None
+				px = None 
 			else:
 				dec = result['I/350/gaiaedr3']['DE_ICRS'][0]
 				ra = result['I/350/gaiaedr3']['RA_ICRS'][0]
@@ -697,6 +724,10 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 				pmra = result['I/350/gaiaedr3']["pmRA"][0]
 				pmdec = result['I/350/gaiaedr3']["pmDE"][0]
 				px = result['I/350/gaiaedr3']["Plx"][0]
+				if type(px) == np.ma.core.MaskedConstant:
+					pmra = None
+					pmdec = None
+					px = None 
 
 		if isinstance(dateobs[i],str):
 			utc = Time(dateobs[i],format='isot',scale='utc')
@@ -800,6 +831,7 @@ def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3):
 	f_norm = f/cont
 
 	return f_norm
+
 
 def dd2sex(ra,dec,results=False):
 
@@ -1299,7 +1331,7 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 
 
 def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
-    quiet=False,trap_apod=0,cr_trim=-0.1,trim_style='clip',
+    quiet=False,trap_apod=0,cr_trim=-0.2,cr_trim_temp=-0.2,trim_style='clip',
     vel_spacing='uniform'):
 	'''
 	A function to prepare a target spectral dictionary with a template 
@@ -1358,10 +1390,19 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
     	nonetheless. The detault value is 0, i.e. no apodization.
 
     cr_trim	: float
-		This parameter sets the value below which emission features are removed. 
+		This parameter sets the value below which emission features are removed
+		from the target (observed/science) spectrum. 
 		Emission is this case is negative becuase the spectra are inverted. The
 		value must be negative. Points below this value are linearly interpolated
-		over. The defulat value is -0.1. If you don't want to clip anything, set 
+		over. The defulat value is -0.2. If you don't want to clip anything, set 
+		this paramter to -np.inf.
+
+	cr_trim_temp : float
+		This parameter sets the value below which emission features are removed
+		from the template (narrow-lined) spectrum. 
+		Emission is this case is negative becuase the spectra are inverted. The
+		value must be negative. Points below this value are linearly interpolated
+		over. The defulat value is -0.2. If you don't want to clip anything, set 
 		this paramter to -np.inf.
 
     trim_style : str, options: 'clip', 'lin', 'spl'
@@ -1474,17 +1515,19 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		flux_temp = temp_spec['nflux']
 		
 		#This gets rid of large emission lines and CRs by interpolating over them.
-		if np.min(flux_tar) < cr_trim:
-			f_tar = interpolate.interp1d(w_tar[flux_tar > cr_trim],flux_tar[flux_tar > cr_trim])
-			w_tar = w_tar[(w_tar >= np.min(w_tar[flux_tar > cr_trim]))&
-						  (w_tar <= np.max(w_tar[flux_tar > cr_trim]))]
-			flux_tar = f_tar(w_tar)
+		flux_tar,w_tar = cr_trim_spec(flux_tar,w_tar,cr_trim)
+		#if np.min(flux_tar) < cr_trim:
+		#	f_tar = interpolate.interp1d(w_tar[flux_tar > cr_trim],flux_tar[flux_tar > cr_trim])
+		#	w_tar = w_tar[(w_tar >= np.min(w_tar[flux_tar > cr_trim]))&
+		#				  (w_tar <= np.max(w_tar[flux_tar > cr_trim]))]
+		#	flux_tar = f_tar(w_tar)
 
-		if np.min(flux_temp) < cr_trim:
-			f_temp = interpolate.interp1d(w_temp[flux_temp > cr_trim],flux_temp[flux_temp > cr_trim])
-			w_temp = w_temp[(w_temp >= np.min(w_temp[flux_temp > cr_trim]))&
-							(w_temp <= np.max(w_temp[flux_temp > cr_trim]))]
-			flux_temp = f_temp(w_temp)
+		flux_temp,w_temp = cr_trim_spec(flux_temp,w_temp,cr_trim_temp)
+		#if np.min(flux_temp) < cr_trim_temp:
+		#	f_temp = interpolate.interp1d(w_temp[flux_temp > cr_trim_temp],flux_temp[flux_temp > cr_trim_temp])
+		#	w_temp = w_temp[(w_temp >= np.min(w_temp[flux_temp > cr_trim_temp]))&
+		#					(w_temp <= np.max(w_temp[flux_temp > cr_trim_temp]))]
+		#	flux_temp = f_temp(w_temp)
 
 		w_tar,flux_tar = spec_trim(w_tar,flux_tar,w_range,temp_trim,trim_style=trim_style)
 
@@ -1557,6 +1600,34 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 	return spectra
 
 
+def cr_trim_spec(f,w,val):
+	if type(val) == float:
+		if np.min(f) < val:
+			f_f = interpolate.interp1d(w[f > val],f[f > val])
+			w = w[(w >= np.min(w[f > val]))&(w <= np.max(w[f > val]))]
+			f = f_f(w)
+
+	if type(val) == str:
+		if val == 'adapt':
+			val_i = -1.5
+			step = 0.05
+			thresh = 0.005
+			frac = np.sum((f < val_i))/np.float(f.size)
+
+			while frac < thresh:
+				val_i = val_i + step
+				frac = np.sum((f < val_i))/np.float(f.size)
+			
+			f_f = interpolate.interp1d(w[f > val_i],f[f > val_i])
+			w = w[(w >= np.min(w[f > val_i]))&(w <= np.max(w[f > val_i]))]
+			f = f_f(w)
+
+		else:
+			print(val+" is not an accepted keyword for cf_trim. Try 'adapt'.")
+
+	return f,w
+
+
 def RChiS(x,y,yerr,func,params):
 	'''
 	A function to compute the Reduced Chi Square between some data and 
@@ -1588,6 +1659,452 @@ def RChiS(x,y,yerr,func,params):
 	rchis=np.sum((y-func(x,*params))**2 / yerr**2 )/(x.size-params.size)
 
 	return rchis
+
+
+def line(x,a,b):
+
+	return a*x + b
+
+
+def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_buffer=1.8,sigma_cut = 2,up_cut=1.5):
+	'''
+	interactive function to measure li EWs
+
+	in terminal setup:
+	>>> cat *mcmc.dat > li_head_in.dat
+	>>> p_file_long,rv,vsini = np.loadtxt('li_head_in.dat',unpack=True,usecols=(0,7,8),dtype='U100,f,f',delimiter=',')
+	>>> for i in range(p_file_long.size):
+			p_file = p_file_long[i][:-11]+'.pkl'
+			teff = p_file_long[i][-10:-6]
+			logg = p_file_long[i][-5:-2]
+			saph.utils.li_analysis(p_file,teff,logg,rv[i],vsini[i])
+
+
+	Default continuum regions do an interative 3-sigma clip to remove detected line. Seems to
+	do a good job, but in principle it will underestimate the continuum level due to undetected
+	shallow lines, which will underestimate the li EW. So far, this has been less than the errors. 
+
+	(For SB2s, this is the best thing to do because choosing continuum regions from a zero-velocity 
+	 template doesn't make sense when there are two sets of lines.)
+
+	You have the option to select the continuum regions by hand, which might give you better results 
+	in certain scenarios
+	- trying to measure faint features
+	- when the spectrum is noisy and the vsini is small, narrow lines you can tell are there but are
+	  not picked up by the default version.
+
+	'''
+
+	def press_key(event):
+		if event.key == 'b':
+			l_range.append(np.round(event.xdata,2))
+
+			if (len(l_range)/2.0 % 1) != 0:
+				ax.axvline(event.xdata,ls='-',color='k')
+			else:
+				ax.axvline(event.xdata,ls='--',color='k')
+			plt.draw()
+
+			return l_range
+
+		if event.key == 'm':
+			i_range.append(np.round(event.xdata,2))
+			ax.axvline(event.xdata,ls=':',lw=3,color='r')
+			plt.draw()
+
+			return
+
+	c = const.c.to('km/s').value
+
+	if w_conv == 'vac':
+		li = air2vac(6707.81)
+		li_hi = air2vac(6707.91)
+		li_lo = air2vac(6707.76)
+	else:
+		li = 6707.81
+		li_hi = 6707.91
+		li_lo = 6707.76
+
+	width_kms = np.max([vsini*vel_buffer,30])
+
+	wi_start = (-width_kms)*li_lo/(c) + li_lo
+	wi_end = (width_kms)*li_hi/(c) + li_hi
+
+	#-------------------------------------------------------------------
+	#getting the model read in, continuum normalized, and broadeded
+	#-------------------------------------------------------------------
+	syn = pkl.load(open('/Users/bt9644/templates/PHOENIX/logg'+logg+'/lte0'+teff+'-'+logg+'0-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes_2800-11000_'+w_conv+'.p','rb'),encoding='latin')
+	
+	w_syn_ha = syn['wav']
+	f_syn_ha = syn['flux']
+	
+	w_syn = syn['wav']
+	f_syn = syn['flux']
+
+	f_syn = f_syn[(w_syn > 6400) & (w_syn < 6900)]
+	w_syn = w_syn[(w_syn > 6400) & (w_syn < 6900)]
+
+
+	f_syncn = cont_norm(w_syn,f_syn,w_width=250.0,maxiter=15,lower=0.45,upper=2.0,nord=3)
+	
+	f_syncn = f_syncn[(w_syn > 6685) & (w_syn < 6735)]
+	w_syn = w_syn[(w_syn > 6685) & (w_syn < 6735)]
+	
+	f_f_syn = interpolate.interp1d(w_syn,f_syncn)
+	
+	r = (w_syn[1]-w_syn[0])/np.max(w_syn)
+	stepV = r * c
+	max_size = np.int(np.log(np.max(w_syn)/(np.min(w_syn)+1))/np.log(1+r))
+	if (max_size/2.0 % 1) != 0:
+		max_size=max_size-1
+	
+	w_syn_ls = (np.min(w_syn)+1)*(1+r)**np.arange(max_size)
+	
+	f_syncn_ls = f_f_syn(w_syn_ls)
+	
+	vel = np.linspace(-100,100,np.int(200/stepV))
+	
+	rot_pro_ip_no = make_rot_pro_ip(R,e=0.6)
+	
+	rot_model = rot_pro_ip_no(vel,1.0,0,vsini,0)
+	
+	f_syn_broad = 1.0-np.convolve(1.0-f_syncn_ls,rot_model,mode='same')
+
+	#------------------------------------------------------------------
+	# read in the pkl
+	#------------------------------------------------------------------
+	hdu = pkl.load(open(p_file,'rb'))
+	f = hdu['flux'][order,:]
+	w_i = hdu['wav'][order,:]
+	
+	w_i = w_i/(1-(-rv/(c)))
+	
+	f = f[~np.isnan(w_i)]
+	w_i = w_i[~np.isnan(w_i)]
+	
+	w_i = w_i[(~np.isnan(f)) & (f != 0)]
+	f = f[(~np.isnan(f)) & (f != 0)]
+
+	f_norm = cont_norm(w_i,f,w_width=50.0,maxiter=20,lower=0.5,upper=0.5,nord=5)
+
+	w_i = w_i[f_norm < up_cut]
+	f_norm = f_norm[f_norm < up_cut]
+
+
+	#------------------------------------------------------------------
+	#default continuum regions:
+	#------------------------------------------------------------------
+
+	outliers = True
+
+	cont_regions = (((w_i > 6685) & (w_i < wi_start)) | ((w_i > wi_end) & (w_i < 6730)))
+
+	while outliers == True:
+		line_fit,line_fit_cov = curve_fit(line,w_i[cont_regions],f_norm[cont_regions])
+
+		resid = (f_norm/line(w_i,*line_fit)-1.0) / np.std(f_norm/line(w_i,*line_fit))
+
+		if np.min(resid[cont_regions]) < -sigma_cut:
+			outliers = True
+			cont_regions = cont_regions * (resid > -sigma_cut)
+			
+			#print(np.sum(cont_regions))
+
+		else:
+			outliers = False
+
+	print(np.sum(cont_regions))
+
+	#------------------------------------------------------------------
+	# plot the li region and define the continuum regions
+	#------------------------------------------------------------------
+	plt.ion()
+
+	fig,ax = plt.subplots(1,figsize=(14.25,7.5))
+
+	ax.plot(w_syn_ls,f_syncn_ls+1,alpha=0.75,color='grey',lw=0.5)
+	#ax.plot(w_syn_ls[cont_regions_syn],f_syn_broad[cont_regions_syn]+1,'o',alpha=0.75,color='C0')
+	ax.plot(w_syn_ls,f_syn_broad+1,alpha=0.75,color='C1',lw=2)
+
+	ax.plot(w_i,f_norm,color='C2')
+	ax.plot(w_i[cont_regions],f_norm[cont_regions],'o',color='C3',ms=3)
+
+	ax.axhline(1-np.std(f_norm[cont_regions]/line(w_i[cont_regions],*line_fit)))
+
+	ax.axvline(wi_start,ls=':',color='red')
+	ax.axvline(wi_end,ls=':',color='red')
+	ax.axvline(li,ls='--',color='red')
+
+	ax.set_xlim(6685,6730)
+	ax.set_ylim(0.0,2.5)
+
+	ax.set_ylabel('Normalized Flux')
+	ax.set_xlabel('Wavelength ($\AA$)')
+
+	plt.tight_layout()
+
+	print('')
+	print('------')
+	print(p_file)
+	use_default = p_input('Use the default windows (continuum in dots, integration in lines), or quit? (y,n,q): ')
+	print('')
+
+	while use_default not in ['y','n','q']:
+		use_default = p_input('try again (y,n,q): ')
+
+	if use_default == 'y':
+
+		plt.cla()
+		
+		plt.close('all')
+
+	if use_default == 'n':
+		print('Use b to mark continuum regions, m to mark integration range.')
+
+		l_range = []
+		i_range = []
+		
+		cid = fig.canvas.mpl_connect('key_press_event',press_key)
+		
+		wait = p_input('')
+	
+		fig.canvas.mpl_disconnect(cid)
+		
+		plt.cla()
+		
+		plt.close('all')
+    	    
+		#cont_regions_syn = np.zeros(w_syn_ls.size,dtype=bool)
+		cont_regions = np.zeros(w_i.size,dtype=bool)
+	
+		if len(l_range) > 0:
+			for i in range(len(l_range)//2):
+				#cont_regions_syn[(w_syn_ls > l_range[i*2]) & (w_syn_ls < l_range[i*2+1])] = True
+				cont_regions[(w_i > l_range[i*2]) & (w_i < l_range[i*2+1])] = True
+
+		if len(i_range) > 0:
+			if len(i_range) == 2:
+				wi_start = i_range[0]
+				wi_end = i_range[1]
+			else:
+				print("Require only one start and end for the integration range. Try again...")
+				return 
+
+	if use_default == 'q':
+		print('On to the next one!')
+		print('---------')
+		print('')
+
+		plt.cla()
+		plt.close('all')
+		
+		return
+
+
+	#------------------------------------------------------------------
+	# fit the continuum regions
+	#------------------------------------------------------------------
+
+	line_fit,line_fit_cov = curve_fit(line,w_i[cont_regions],f_norm[cont_regions])
+
+	f_mcn = f_norm/line(w_i,*line_fit)
+
+	ferr_m = line(w_i,*line_fit) * np.std(f_mcn[cont_regions])
+
+	f_m_std = np.std(f_mcn[cont_regions])
+
+	def log_likelihood(params, w, obs, obs_err):
+		a,b,log_f = params
+		model = line(w,a,b)
+		sigma2 = obs_err**2 + model**2*np.exp(2*log_f)
+		
+		return -0.5*np.sum((obs-model)**2/sigma2 + np.log(sigma2))
+		
+	def log_prior(params):
+		a,b,log_f = params
+	
+		if -10 < a < 10 and -100 < b < 100 and -10.0 < log_f < 1.0:
+		    return 0.0
+		else:
+		    return -np.inf
+	
+	def log_probability(params, w, obs, obs_err):
+		lp = log_prior(params)
+		if not np.isfinite(lp):
+		    return -np.inf
+		return lp + log_likelihood(params, w, obs, obs_err)
+
+	max_steps = 10000
+
+
+	mcmc_start = np.array([line_fit[0],line_fit[1],-9])
+		
+	pos = mcmc_start + np.array([1e-4,1e-4,1e-4])*np.random.randn(32, 3)
+	nwalkers, ndim = pos.shape
+		
+	sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, 
+	                                args=(w_i[cont_regions],f_norm[cont_regions],ferr_m[cont_regions]),
+	                                threads=7)
+	
+	index = 0
+	autocorr = np.empty(max_steps)
+	N = np.empty(max_steps)
+	old_tau = np.inf
+	converged = False
+	# Now we'll sample for up to max_n steps
+	for sample in sampler.sample(pos, iterations=max_steps, progress=False):
+		# Only check convergence every 100 steps
+		if converged == False:
+			if sampler.iteration % 1000 == 0:
+				print('Step count:',sampler.iteration)
+			if sampler.iteration % 100:
+			    continue
+		
+			#Measure convergence 
+			tau = sampler.get_autocorr_time(tol=0)
+			autocorr[index] = np.mean(tau)
+			N[index] = sampler.iteration
+		
+			#Check convergence
+			converged = np.all(tau * 50 < sampler.iteration)
+			converged &= np.all(np.abs(old_tau - tau) / tau < 0.01)
+			if converged:
+				#converge_step = sampler.chain.shape[1]
+				tau_converge = sampler.get_autocorr_time()
+				burnin = int(5 * np.max(tau_converge))
+				break
+			old_tau = tau
+			index += 1
+	if converged == False:
+		print('Unable to measure convergence')
+		burnin = np.int(max_steps/4.0)
+	N = N[:index-1]
+	autocorr = autocorr[:index-1]
+	samples = sampler.chain
+	corner_samples = sampler.get_chain(discard=burnin, flat=True)
+		
+
+	a_samples = samples[:,burnin:,0].flatten()
+	b_samples = samples[:,burnin:,1].flatten()
+	
+	labels=['a','b','jitter']
+	
+	a = np.percentile(a_samples,50,axis=0)
+	b = np.percentile(b_samples,50,axis=0)
+	
+	f_mcn_mcmc = f_norm/line(w_i,a,b)
+	
+	n_iters = 10
+	
+	int_ind = ((w_i > wi_start) & (w_i < wi_end))
+
+	#------------------------------------------------------
+	# now bootstrap over a bunch of stuff
+	#------------------------------------------------------
+	n_steps = 500
+
+	ew_dist = np.zeros(n_steps*n_iters)
+	ew_gdist = np.zeros(n_steps*n_iters)
+	
+	vres = c/R
+	vsig = vres/(2.0*np.sqrt(2.0*np.log(2.0)))
+
+	k=0
+	for i in range(n_steps):
+		for j in range(n_iters):
+			#wi_start = (-width_kms)*li_lo/(c) + li_lo
+			#wi_start = (-(width_kms+vres*2.0) + np.random.normal(0,vres))*li_lo/(c) + li_lo
+			wi_start_i = wi_start - (li*((2*vsig+np.random.normal(0,vsig))/c))
+			wi_end_i = wi_end + (li*((2*vsig+np.random.normal(0,vsig))/c))
+			#wi_end = (width_kms+vres*2.0 + np.random.normal(0,vres))*li_hi/(c) + li_hi
+	
+			int_ind = ((w_i > wi_start_i) & (w_i < wi_end_i))
+	
+			f_m_i = f_norm + np.random.normal(0,f_m_std,f_norm.size)
+	
+			ew_dist[k] = trap_int(w_i[int_ind],1.0-(f_m_i/line(w_i,a_samples[i],b_samples[i]))[int_ind])[0]
+
+			k = k + 1
+	
+	ew = np.percentile(ew_dist,[16,50,84],axis=0)
+	
+	print('')
+	print('Li EW:',ew[1],ew[2]-ew[1],ew[0]-ew[1])
+	print('--------')
+	print('')
+
+
+	#-------------------------------------------------------------------
+	#----------- PLOTS -------------------------------------------------
+	#-------------------------------------------------------------------
+	
+	pp = PdfPages(p_file.split('.')[0]+'_li.pdf')
+	
+	fig,ax = plt.subplots(1)
+
+	ax.plot(w_syn,f_syncn+1,alpha=0.75,color='grey')
+	#ax.plot(w_syn_ls[cont_regions_syn],f_syn_broad[cont_regions_syn]+1,'o',alpha=0.75,color='C0')
+	ax.plot(w_syn_ls,f_syn_broad+1,color='C1')
+	
+	ax.plot(w_i,f_norm,color='C2')
+	ax.plot(w_i[cont_regions],f_norm[cont_regions],'o',color='C3',ms=3)
+	
+	rn_ind = np.random.randint(0,n_steps,50)
+	for i in range(rn_ind.size):
+		ax.plot(w_i,line(w_i,a_samples[rn_ind[i]],b_samples[rn_ind[i]]),color='lightgrey',alpha=0.2)
+	ax.plot(w_i,line(w_i,*line_fit),color='grey')
+
+	ax.axvline(wi_start,ls=':',color='k')
+	ax.axvline(wi_end,ls=':',color='k')
+	ax.axvline(li,ls='--',color='k')
+	ax.set_xlim(6685,6735)
+	ax.set_ylim(0.3,2.2)
+	
+	ax.set_xlabel('Wavelength ($\AA$)')
+	ax.set_ylabel('Normalized Flux')
+
+	plt.tight_layout()
+	pp.savefig()
+	
+	fig,ax = plt.subplots(1)
+	
+	ax.plot(w_i,f_mcn_mcmc)
+	ax.plot(w_i[cont_regions],f_mcn[cont_regions],'o',ms=3)
+	ax.axvline(wi_start,ls=':',color='k')
+	ax.axvline(wi_end,ls=':',color='k')
+	
+	ax.axvline(wi_start - (li*(2*vsig/c + 1.0)),ls=':',color='k',alpha=0.5)
+	ax.axvline(wi_end + (li*(2*vsig/c + 1.0)),ls=':',color='k',alpha=0.5)
+	
+	ax.axvline(li,ls='--',color='k')
+	ax.axhline(1.0,color='k')
+	ax.set_xlim(6700,6720)
+	ax.set_ylim(0.0,2.5)
+
+	ax.set_xlabel('Wavelength ($\AA$)')
+	ax.set_ylabel('Normalized Flux')
+	
+	plt.tight_layout()
+	pp.savefig()
+	
+	fig,ax = plt.subplots(1)
+	
+	ax.hist(ew_dist,bins=25)
+	ax.axvline(ew[2],ls='--',color='k')
+	ax.axvline(ew[1],ls='--',color='k')
+	ax.axvline(ew[0],ls='--',color='k')
+	
+	ax.set_xlabel('Li EW ($\AA$)')
+	ax.set_ylabel('N')
+
+	plt.tight_layout()
+	pp.savefig()
+
+	plt.close('all')
+
+	pp.close()
+
+	return
 
 
 def region_select_pkl(target,template=None,tar_stretch=True,
@@ -2229,7 +2746,7 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		temp_stretch = False
 		header_wave = False
 		w_mult = 10**4
-		reverse = True
+		reverse = False
 
 	#------ Reading in telluric file --------------
 
@@ -2256,6 +2773,8 @@ def region_select_ms(target,template=None,tar_stretch=True,
 		order = hdulist[t_order].data.shape[0]
 	else:
 		order = len(hdulist)
+		if order == 1:
+			order = hdulist[0].data.shape[0]
 
 	plt.ion()
 
@@ -2291,26 +2810,49 @@ def region_select_ms(target,template=None,tar_stretch=True,
 			w = hdulist[1].data[i_ind]*w_mult
 			dw=(np.max(w) - np.min(w))/np.float(w.size)
 
+		print(header_wave)
+		print(order,t_order,i_ind)
+
+
 		if header_wave == True:
-			flux = hdulist[order].data[i_ind]
+			try:
+				flux = hdulist[order].data[i_ind]
+			except:
+				flux = hdulist[t_order].data[i_ind]
 
-			#Pulls out all headers that have the WAT2 keywords
-			header_keys=np.array(hdulist[t_order].header.keys(),dtype=str)
-			header_test=np.array([header_keys[d][0:4]=='WAT2' \
-			                     for d in range(header_keys.size)])
-			w_sol_inds=np.where(header_test==True)[0]
+			try:
+				#Pulls out all headers that have the WAT2 keywords
+				header_keys=np.array(hdulist[t_order].header.keys(),dtype=str)
+				header_test=np.array([header_keys[d][0:4]=='WAT2' \
+				                     for d in range(header_keys.size)])
+				w_sol_inds=np.where(header_test==True)[0]
+	
+				#The loop below puts all the header extensions into one string
+				w_sol_str=''
+				for j in range(w_sol_inds.size):
+				    if len(hdulist[t_order].header[w_sol_inds[j]]) == 68:
+				        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]
+				    if len(hdulist[t_order].header[w_sol_inds[j]]) == 67:
+				        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]+' '
+				    if len(hdulist[t_order].header[w_sol_inds[j]]) == 66:
+				        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]+' ' 
+				    if len(hdulist[t_order].header[w_sol_inds[j]]) < 66:
+				        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]
 
-			#The loop below puts all the header extensions into one string
-			w_sol_str=''
-			for j in range(w_sol_inds.size):
-			    if len(hdulist[t_order].header[w_sol_inds[j]]) == 68:
-			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]
-			    if len(hdulist[t_order].header[w_sol_inds[j]]) == 67:
-			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]+' '
-			    if len(hdulist[t_order].header[w_sol_inds[j]]) == 66:
-			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]+' ' 
-			    if len(hdulist[t_order].header[w_sol_inds[j]]) < 66:
-			        w_sol_str=w_sol_str+hdulist[t_order].header[w_sol_inds[j]]
+			except: 
+				wat2_head = hdulist[t_order].header['WAT2*']
+				w_sol_inds = np.arange(len(wat2_head))
+
+				w_sol_str=''
+				for j in range(w_sol_inds.size):
+				    if len(wat2_head[np.int(w_sol_inds[j])]) == 68:
+				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]
+				    if len(wat2_head[np.int(w_sol_inds[j])]) == 67:
+				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]+' '
+				    if len(wat2_head[np.int(w_sol_inds[j])]) == 66:
+				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]+' ' 
+				    if len(wat2_head[np.int(w_sol_inds[j])]) < 66:
+				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]
 
 			# normalized the formatting
 			w_sol_str=w_sol_str.replace('    ',' ').replace('   ',' ').replace('  ',' ')
@@ -2962,7 +3504,7 @@ def td_gaussian(xy_ins, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 
 def t_gaussian_off(x,A1,x01,sig1,A2,x02,sig2,A3,x03,sig3,o):
     '''
-    A double gaussian function with a constant vetical offset.
+    A triple gaussian function with a constant vetical offset.
 
     Parameters
 	----------
@@ -3009,6 +3551,77 @@ def t_gaussian_off(x,A1,x01,sig1,A2,x02,sig2,A3,x03,sig3,o):
     return (A1*np.e**(-(x-x01)**2/(2.0*sig1**2))+
             A2*np.e**(-(x-x02)**2/(2.0*sig2**2))+
             A3*np.e**(-(x-x03)**2/(2.0*sig3**2))+o)
+
+
+def trap_int(x,y,yerr=None,xerr=None,y_low=None,y_lowerr=None):
+    '''
+    A function to integrate data with trapazoids. Returns the numerical 
+    integration and the uncertainty in that integration. Can be integtrated 
+    with respect to zero or to another curve sampled at the same rate. 
+
+    Parameters
+    ----------
+    x : array like
+       An array of x-values to be integrated over. 
+
+    y : array like
+       An array of y-values to be integrated. 
+
+    yerr : array like, optional
+       An array of one-sigma errors associated with y. Assumes no error of left
+       as None, which is the default. 
+
+    xerr : array like, optional
+       An array of one-sigma errors associated with x. Assumes no error of left
+       as None, which is the default. 
+
+    y_low : array like, optional
+       An array of y-values the y values above should be integrated against, 
+       i.e. y-y_low. This array must have the same number of elements as y, and
+       be interpolated to match the x values associated with y. If unassigned,
+       (left as None) the integration is calculated with repsect to zero, i.e.
+       y-0.0.
+    
+    y_lowerr : array like optional
+       An array of one-sigma error associated with y_low. Only used if y_low is
+       specified. 
+
+    Returns
+    -------
+    Two values:
+       The integration value and its error. 
+
+    Outputs
+    -------
+    None
+
+    Version History
+    ---------------
+    2016-12-06 - Start
+    '''
+    int_step=np.empty(0)
+    int_step_err=np.empty(0)
+
+    if y_lowerr == None: y_lowerr=np.zeros(y.size)
+    if y_low == None:
+        y_low=np.zeros(y.size)
+        y_lowerr=np.zeros(y.size)
+    if yerr is None: yerr=np.zeros(y.size)
+    if xerr is None: xerr=np.zeros(y.size)
+
+    for i in range(y.size-1):
+        w=(x[i+1]-x[i])
+        werr=np.sqrt(xerr[i+1]**2+xerr[i]**2)
+        a=y[i]-y_low[i]
+        aerr=np.sqrt(yerr[i]**2+y_lowerr[i]**2)
+        b=y[i+1]-y_low[i+1]
+        berr=np.sqrt(yerr[i+1]**2+y_lowerr[i+1]**2)
+        int_step=np.append(int_step,(a+b)*w/2.0)
+        int_step_err=np.append(int_step_err,np.sqrt((w*aerr/2.0)**2 + 
+                                                    (w*berr/2.0)**2 + 
+                                                    ((a+b)*werr/2.0)**2))
+        
+    return np.sum(int_step),np.sqrt(np.sum(int_step_err**2))
 
 
 def vac2air(w_vac):
