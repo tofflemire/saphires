@@ -24,4 +24,5 @@ setup(name='saphires',
                 'pdyl',
                 'multiprocessing',
                 'barycorrpy',
-                'astroquery'])
+                'astroquery',
+                'corner'])
