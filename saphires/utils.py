@@ -556,14 +556,13 @@ def bf_text_output(ofname,target,template,gs_fit,rchis,rv_weight,fit_int):
 	return
 
 
-def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
-         pmra=0,pmdec=0,px=0,query=False):
+def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,pmra=0,pmdec=0,px=0,query=False):
 	'''
 	observat options:
 	- salt - (e.g. HRS)
 	- eso22 - (e.g. FEROS)
 	- vlt82 - (e.g. UVES)
-	- mcd27 - (e.g. IGRINS)
+	- mcdonald - (e.g. IGRINS)
 	- lco_nres_lsc1 - (e.g. NRES at La Silla)
 	- lco_nres_cpt1 - (e.g. NRES at SAAO)
 	- tlv - (e.g. LCO NRES at Wise Observatory in Tel Aviv)
@@ -571,7 +570,7 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,
 	- geminiS - (e.g. IGRINS South)
 	- wiyn - (e.g. HYDRA)
 	- dct - (e.g. IGRINS at DCT)
-	- hires - (Keck Hi-Res)
+	- keck - (Keck Hi-Res)
 	- smarts15 - (e.g. CHIRON)
 
 	returns
@@ -879,13 +878,13 @@ def dd2sex(ra,dec,results=False):
     '''
 
     rah=(np.array([ra])/360.0*24.0)
-    raho=np.array(rah,dtype=np.int)
-    ramo=np.array(((rah-raho)*60.0),dtype=np.int)
+    raho=np.array(rah,dtype=int)
+    ramo=np.array(((rah-raho)*60.0),dtype=int)
     raso=((rah-raho)*60.0-ramo)*60.0
     dec=np.array([dec])
     dec_sign = np.sign(dec)
-    decdo=np.array(dec,dtype=np.int)
-    decmo=np.array(np.abs(dec-decdo)*60,dtype=np.int)
+    decdo=np.array(dec,dtype=int)
+    decmo=np.array(np.abs(dec-decdo)*60,dtype=int)
     decso=(np.abs(dec-decdo)*60-decmo)*60.0
 
     if results == True:
@@ -1271,7 +1270,7 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 	'''
 	n_orders = t_f_names[t_f_names!='Combined'].size
 
-	n_orders_out = np.int(n_orders/np.float(n_comb))
+	n_orders_out = int(n_orders/np.float(n_comb))
 
 	spectra_out = {}
 	t_f_names_out = np.zeros(n_orders_out,dtype=nplts+'1000')
@@ -1310,8 +1309,8 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 		flux_all = flux_all[np.argsort(w_all)]
 		w_all = w_all[np.argsort(w_all)]
 
-		w_min=np.int(np.min(w_all))
-		w_max=np.int(np.max(w_all))
+		w_min=int(np.min(w_all))
+		w_max=int(np.max(w_all))
 
 		t_dw = np.median(w_all - np.roll(w_all,1))
 
@@ -1330,9 +1329,7 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 	return t_f_names_out,spectra_out
 
 
-def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
-    quiet=False,trap_apod=0,cr_trim=-0.2,cr_trim_temp=-0.2,trim_style='clip',
-    vel_spacing='uniform'):
+def prepare(t_f_names,t_spectra,temp_spec,oversample=1,quiet=False,trap_apod=0,cr_trim=-0.2,cr_trim_temp=-0.2,trim_style='clip',vel_spacing='uniform',set_spacing=False):
 	'''
 	A function to prepare a target spectral dictionary with a template 
 	spectral dictionary for use with SAPHIRES analysis tools. The preparation
@@ -1497,7 +1494,7 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		#velocity spacing in km/s
 		stepV=r*c
 
-	if ((type(vel_spacing) == float) or (type(vel_spacing) == 'numpy.float64')):
+	if ((type(vel_spacing) == float) or isinstance(vel_spacing,float)):
 		stepV = vel_spacing
 		r = stepV / (c)
 		min_dw = r * max_w
@@ -1543,11 +1540,6 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 		f_tar = interpolate.interp1d(w_tar,flux_tar)
 		f_temp = interpolate.interp1d(w_temp,flux_temp)
 
-		min_w = np.max([np.min(w_tar),np.min(w_temp)])
-
-		max_w = np.min([np.max(w_tar),np.max(w_temp)])
-
-
 		if vel_spacing == 'orders':
 			#Using the wavelength spacing of the most densely sampled spectrum
 			min_dw=np.min([temp_spec['ndw'],spectra[t_f_names[i]]['ndw']])
@@ -1557,12 +1549,22 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 	
 			#velocity spacing in km/s
 			stepV = r * c
-		
-		#the largest array length between target and spectrum
-		#conditional below makes sure it is even
-		max_size = np.int(np.log(max_w/(min_w+1))/np.log(1+r))
-		if (max_size/2.0 % 1) != 0:
-			max_size=max_size-1
+
+		if set_spacing == False:
+			min_w = np.max([np.min(w_tar),np.min(w_temp)])
+
+			max_w = np.min([np.max(w_tar),np.max(w_temp)])
+
+			#the largest array length between target and spectrum
+			#conditional below makes sure it is even
+			max_size = int(np.log(max_w/(min_w+1))/np.log(1+r))
+			if (max_size/2.0 % 1) != 0:
+				max_size=max_size-1
+		else:
+			min_w,max_size = set_spacing
+			if (max_size/2.0 % 1) != 0:
+				max_size=max_size-1
+
 
 		#log wavelength spacing, linear velocity spacing
 		w1t=(min_w+1)*(1+r)**np.arange(max_size)
@@ -1583,10 +1585,10 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,
 
 		if trap_apod > 0:
 			trap_apod_fun = np.ones(w1t.size)
-			slope = 1.0/np.int(w1t.size*trap_apod)
+			slope = 1.0/int(w1t.size*trap_apod)
 			y_int = slope*w1t.size
-			trap_apod_fun[:np.int(w1t.size*trap_apod)] = slope*np.arange(np.int(w1t.size*trap_apod),dtype=float)
-			trap_apod_fun[-np.int(w1t.size*trap_apod)-1:] = -slope*(np.arange(np.int(w1t.size*trap_apod+1),dtype=float)+(w1t.size*(1-trap_apod))) + y_int
+			trap_apod_fun[:int(w1t.size*trap_apod)] = slope*np.arange(int(w1t.size*trap_apod),dtype=float)
+			trap_apod_fun[-int(w1t.size*trap_apod)-1:] = -slope*(np.arange(int(w1t.size*trap_apod+1),dtype=float)+(w1t.size*(1-trap_apod))) + y_int
 
 			temp_rflux = temp_rflux * trap_apod_fun
 			t_rflux = t_rflux * trap_apod_fun
@@ -1754,7 +1756,7 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 	
 	r = (w_syn[1]-w_syn[0])/np.max(w_syn)
 	stepV = r * c
-	max_size = np.int(np.log(np.max(w_syn)/(np.min(w_syn)+1))/np.log(1+r))
+	max_size = int(np.log(np.max(w_syn)/(np.min(w_syn)+1))/np.log(1+r))
 	if (max_size/2.0 % 1) != 0:
 		max_size=max_size-1
 	
@@ -1762,7 +1764,7 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 	
 	f_syncn_ls = f_f_syn(w_syn_ls)
 	
-	vel = np.linspace(-100,100,np.int(200/stepV))
+	vel = np.linspace(-100,100,int(200/stepV))
 	
 	rot_pro_ip_no = make_rot_pro_ip(R,e=0.6)
 	
@@ -1977,7 +1979,7 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 			index += 1
 	if converged == False:
 		print('Unable to measure convergence')
-		burnin = np.int(max_steps/4.0)
+		burnin = int(max_steps/4.0)
 	N = N[:index-1]
 	autocorr = autocorr[:index-1]
 	samples = sampler.chain
@@ -2398,8 +2400,7 @@ def region_select_pkl(target,template=None,tar_stretch=True,
 	return
 
 
-def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,
-    jump_to=0):
+def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,jump_to=0):
 	'''
 	An interactive function to plot spectra that allowing you 
 	to select useful regions with which to compute the 
@@ -2845,14 +2846,14 @@ def region_select_ms(target,template=None,tar_stretch=True,
 
 				w_sol_str=''
 				for j in range(w_sol_inds.size):
-				    if len(wat2_head[np.int(w_sol_inds[j])]) == 68:
-				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]
-				    if len(wat2_head[np.int(w_sol_inds[j])]) == 67:
-				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]+' '
-				    if len(wat2_head[np.int(w_sol_inds[j])]) == 66:
-				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]+' ' 
-				    if len(wat2_head[np.int(w_sol_inds[j])]) < 66:
-				        w_sol_str=w_sol_str+wat2_head[np.int(w_sol_inds[j])]
+				    if len(wat2_head[int(w_sol_inds[j])]) == 68:
+				        w_sol_str=w_sol_str+wat2_head[int(w_sol_inds[j])]
+				    if len(wat2_head[int(w_sol_inds[j])]) == 67:
+				        w_sol_str=w_sol_str+wat2_head[int(w_sol_inds[j])]+' '
+				    if len(wat2_head[int(w_sol_inds[j])]) == 66:
+				        w_sol_str=w_sol_str+wat2_head[int(w_sol_inds[j])]+' ' 
+				    if len(wat2_head[int(w_sol_inds[j])]) < 66:
+				        w_sol_str=w_sol_str+wat2_head[int(w_sol_inds[j])]
 
 			# normalized the formatting
 			w_sol_str=w_sol_str.replace('    ',' ').replace('   ',' ').replace('  ',' ')

@@ -31,6 +31,11 @@ from scipy import interpolate
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+from astropy import constants as const
+from astropy.visualization import (MinMaxInterval, SqrtStretch,
+                                   ImageNormalize, ZScaleInterval)
+from astropy.visualization.stretch import SinhStretch, LinearStretch, AsinhStretch
+
 # ---- 
 
 # ---- Project
@@ -42,10 +47,12 @@ if py_version == 3:
 	p_input = input
 if py_version == 2:
 	p_input = raw_input
+
+c = const.c.to('km/s').value
 	
-def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
+def todcor(t_f_names,tar_spec,temp_spec1,temp_spec2,vel_width=200.0,
     stamp_size=5,alpha_fit=True,guess=False,
-    results=True,text_out=True):
+    results=True,text_out=True,i_osample=10,zoom_osample=100,zoom_vel_width=3.0):
 	'''
 	Two-Dimentional Cross Correlation
 	Algorithm framework - Zucker & Mazeh 1994 (Appendix)
@@ -109,8 +116,8 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 	  rotational broadening, etc. 
 
 	Parameters
-    ----------
-    t_f_names: array-like
+	----------
+	t_f_names: array-like
 		Array of keywords for a science spectrum SAPHIRES dictionary. Output of 
 		one of the saphires.io read-in functions.
 
@@ -190,6 +197,9 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		['tod_temps'] - The names of the templates used when running TODCOR
 	'''
 
+	t_spec1 = utils.prepare(t_f_names,tar_spec,temp_spec1,oversample=i_osample)
+	t_spec2 = utils.prepare(t_f_names,tar_spec,temp_spec2,oversample=i_osample)
+
 	spectra = copy.deepcopy(t_spec1)
 
 	vel_guess=[]
@@ -233,9 +243,9 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 
 		if f_s.size < m:
 			if quiet == False:
-				print(t_f_names[i],t_spectra[t_f_names[i]]['w_region'])
+				print(t_f_names[i],spectra[t_f_names[i]]['w_region'])
 				print("The target mask region is smaller for the m value.")
-				print(w1t.size,'versus',m)
+				print(f_s.size,'versus',m)
 				print("You can either reduce the vel_width, or remove this order from the input,")
 				print("or don't worry about it.")
 				print(' ')
@@ -287,21 +297,36 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			#A reminder that python indecies are ROW-COLUMN
 			# i = primary   = 1 = row    = Y
 			# j = secondary = 2 = column = X
-			cs=ax[0].contour(c2_v,c1_v,tod,cmap='YlGnBu',levels=np.arange(0,np.max(tod),0.005))
+			norm_tod = ImageNormalize(tod,interval=ZScaleInterval(),stretch=LinearStretch())
+
+			cs = ax[0].imshow(tod,cmap='YlGnBu',extent=[np.min(c2_v),np.max(c2_v),np.min(c1_v),np.max(c1_v)],origin='lower',
+						 norm=norm_tod)
+
+			ax[0].contour(c2_v,c1_v,tod,cmap='YlGnBu_r',levels=np.arange(0,np.min([1.5,np.max(tod)]),0.05))
 			ax[0].plot(c2_v,c1_v,':',color='k')
 			ax[0].set_xlabel('Secondary Velocity (km/s)')
 			ax[0].set_ylabel('Primary Velocity (km/s)')
 			cbar = plt.colorbar(cs,format="%3.2f",ax=ax[0])
 			ax[0].set_title('Two-Dimentional CCF')
+			ax[0].set_aspect('equal')
 
 			if alpha_fit == True:
-				cs=ax[1].contour(c2_v,c1_v,alpha_f,cmap='YlGnBu',levels=np.arange(0,1,0.05))
+				alpha_f_norm = copy.deepcopy(alpha_f)
+				alpha_f_norm[alpha_f_norm > 1] = np.nan
+				alpha_f_norm[alpha_f_norm < 0] = np.nan
+
+				norm_aplf = ImageNormalize(alpha_f_norm,interval=MinMaxInterval(),stretch=LinearStretch())
+
+				cs=ax[1].imshow(alpha_f,cmap='YlGnBu',extent=[np.min(c2_v),np.max(c2_v),np.min(c1_v),np.max(c1_v)],
+							    origin='lower',norm=norm_aplf)
+				ax[1].contour(c2_v,c1_v,alpha_f,cmap='YlGnBu_r',levels=np.arange(0,1,0.05))
 				ax[1].plot(c2_v,c1_v,':',color='k')
 				ax[1].set_xlabel('Secondary Velocity (km/s)')
 				ax[1].set_ylabel('Primary Velocity (km/s)')
 				cbar = plt.colorbar(cs,format="%3.2f",ax=ax[1])
 				ax[1].set_title(r'Flux Ratio ($\alpha$)')
-		
+				ax[1].set_aspect('equal')
+				
 			plt.tight_layout()
 			
 			print('')
@@ -329,17 +354,115 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		
 		print('Velocity Guesses:',vel_guess)
 
+		temp_spec1_g = copy.deepcopy(temp_spec1)
+		temp_spec1_g['nwave'] = temp_spec1['nwave']/(1-(vel_guess[0]/(c)))
+		temp_spec1_g['ndw'] = np.median(temp_spec1_g['nwave'] - np.roll(temp_spec1_g['nwave'],1))
+
+		temp_spec2_g = copy.deepcopy(temp_spec2)
+		temp_spec2_g['nwave'] = temp_spec2['nwave']/(1-(vel_guess[1]/(c)))
+		temp_spec2_g['ndw'] = np.median(temp_spec2_g['nwave'] - np.roll(temp_spec2_g['nwave'],1))
+
+		tspec1_g = utils.prepare(t_f_names,tar_spec,temp_spec1_g,oversample=zoom_osample)
+		tspec2_g = utils.prepare(t_f_names,tar_spec,temp_spec2_g,oversample=zoom_osample)
+
+		vel_spacing_new = tspec1_g[t_f_names[k]]['vel_spacing']
+		min_w = np.max([np.min(tspec1_g[t_f_names[k]]['vwave']),
+						np.min(tspec2_g[t_f_names[k]]['vwave'])])
+		max_w = np.min([np.max(tspec1_g[t_f_names[k]]['vwave']),
+						np.max(tspec2_g[t_f_names[k]]['vwave'])])
+
+		r = vel_spacing_new/c
+
+		max_size = np.int(np.log(max_w/(min_w+1))/np.log(1+r))
+
+		tspec2_g = utils.prepare(t_f_names,tar_spec,temp_spec2_g,oversample=zoom_osample,
+								 vel_spacing=vel_spacing_new,set_spacing=(min_w,max_size))
+		tspec1_g = utils.prepare(t_f_names,tar_spec,temp_spec1_g,oversample=zoom_osample,
+								 vel_spacing=vel_spacing_new,set_spacing=(min_w,max_size))
+
+
+		v_spacing1_g = tspec1_g[t_f_names[k]]['vel_spacing']
+		v_spacing2_g = tspec2_g[t_f_names[k]]['vel_spacing']
+		
+		if v_spacing1_g != v_spacing2_g:
+			print('')
+			print('Different wavelength step in the two templates.')
+			print('This may have adverse effects that have not been fully explored.')
+			print('See documentation for possible work arounds.')
+			print('')
+		
+		mz = np.int(zoom_vel_width / v_spacing1_g)
+
+		if (mz/2.0 % 1) == 0:
+			mz=mz-1
+
+		f_s = tspec1_g[t_f_names[k]]['vflux']
+		f_t1 = tspec1_g[t_f_names[k]]['vflux_temp']
+		f_t2 = tspec2_g[t_f_names[k]]['vflux_temp']
+
+		if f_s.size < mz:
+			if quiet == False:
+				print(t_f_names[i],spectra[t_f_names[i]]['w_region'])
+				print("The target mask region is smaller for the m value.")
+				print(f_s.size,'versus',mz)
+				print("You can either reduce the vel_width, or remove this order from the input,")
+				print("or don't worry about it.")
+				print(' ')
+			spectra[t_f_names[i]]['vwave'] = 0.0	
+			spectra[t_f_names[i]]['order_flag'] = 0
+			continue
+
+		c1,c1_v = utils.spec_ccf(f_s,f_t1,mz,v_spacing1_g) # The Primary CCF
+	
+		c2,c2_v = utils.spec_ccf(f_s,f_t2,mz,v_spacing1_g) # The Secondary CCF
+	
+		c12,c12_v = utils.spec_ccf(f_t1,f_t2,mz*2+1,v_spacing1_g) # The Primary v Secondary CCF
+	
+		#This statement works when alpha_fit is given a float
+		if type(alpha_fit) == float:
+			alpha_in = alpha_fit
+			alpha_p = (np.std(f_t2)/np.std(f_t1)) * alpha_in
+
+		#This statement works when alpha_fit == False, in which case it is set to 1.0
+		if alpha_fit == False:
+			alpha_in = 1.0
+			alpha_p = (np.std(f_t2)/np.std(f_t1)) * alpha_in
+	
+		tod = np.zeros([c1_v.size,c2_v.size])
+		alpha_f = np.zeros([c1_v.size,c2_v.size])
+		
+		for i in range(c1_v.size):
+			for j in range(c2_v.size):
+				i12 = i + np.int(m/2)+1
+				j12 = j + np.int(m/2)+1
+	
+				if alpha_fit != True:
+					tod[i,j] = c1[i] + alpha_p*c2[j] / np.sqrt(1.0 + 2.0*alpha_p*c12[j12-i12] + alpha_p**2)
+	
+				if alpha_fit == True:
+					tod[i,j] = np.sqrt((c1[i]**2 - 2.0*c1[i]*c2[j]*c12[j12-i12] + c2[j]**2) 
+					                   / (1.0 - c12[j12-i12]**2))
+	
+					alpha_f[i,j] = ((np.std(f_t1)/np.std(f_t2)) * 
+					                ((c1[i]*c12[j12-i12]-c2[j])/(c2[j]*c12[j12-i12]-c1[i])))
+
+
 		#Indecies for the center of the fitting stamp location
-		pg_ind=np.where(np.abs(c1_v - vel_guess[0]) == np.min(np.abs(c1_v - vel_guess[0])))[0][0]
-		sg_ind=np.where(np.abs(c2_v - vel_guess[1]) == np.min(np.abs(c2_v - vel_guess[1])))[0][0]
+		#pg_ind=np.where(np.abs(c1_v - vel_guess[0]) == np.min(np.abs(c1_v - vel_guess[0])))[0][0]
+		#sg_ind=np.where(np.abs(c2_v - vel_guess[1]) == np.min(np.abs(c2_v - vel_guess[1])))[0][0]
 		
 		#The row-column nature of python arrays when ploting has things looking weird here but the 
 		#current set us is returning the correct answers.
-		stamp = tod[pg_ind-stamp_size:pg_ind+stamp_size+1,sg_ind-stamp_size:sg_ind+stamp_size+1]
+		#stamp = tod[pg_ind-stamp_size:pg_ind+stamp_size+1,sg_ind-stamp_size:sg_ind+stamp_size+1]
 
-		c1_v_cut = c1_v[pg_ind-stamp_size:pg_ind+stamp_size+1]
-		c2_v_cut = c2_v[sg_ind-stamp_size:sg_ind+stamp_size+1]
-		c2_v_cutm,c1_v_cutm = np.meshgrid(c2_v_cut,c1_v_cut)
+		#c1_v_cut = c1_v[pg_ind-stamp_size:pg_ind+stamp_size+1]
+		#c2_v_cut = c2_v[sg_ind-stamp_size:sg_ind+stamp_size+1]
+		#c2_v_cutm,c1_v_cutm = np.meshgrid(c2_v_cut,c1_v_cut)
+
+		c1_v = c1_v[10:-10]
+		c2_v = c2_v[10:-10]
+		tod = tod[10:-10,10:-10]
+		alpha_f = alpha_f[10:-10,10:-10]
 
 		#---------------------- Raw Maximum ---------------------------------------
 		#stamp_max_ind = np.where(stamp == np.max(stamp))
@@ -349,13 +472,13 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 		#print c2_max,c1_max
 
 		#--------------- 2D Gaussian Fit ------------------------------------------
-		fit_guess = [np.max(stamp), vel_guess[1], vel_guess[0], 7, 12, 90, 0]
-		td_fit, td_cov = curve_fit(utils.td_gaussian, (c2_v_cutm,c1_v_cutm), stamp.ravel(), 
-		                           p0=fit_guess, maxfev=20000,
-		                           bounds = ((0,np.min(c2_v_cut),np.min(c1_v_cut),0,0,0,0),
-		                           			(10,np.max(c2_v_cut),np.max(c1_v_cut),100,100,360,10)))
-		fit_gauss1d = utils.td_gaussian((c2_v_cutm,c1_v_cutm),*td_fit)
-		fit_gauss = fit_gauss1d.reshape(c2_v_cut.size,c1_v_cut.size)
+		#fit_guess = [np.max(stamp), vel_guess[1], vel_guess[0], 7, 12, 90, 0]
+		#td_fit, td_cov = curve_fit(utils.td_gaussian, (c2_v_cutm,c1_v_cutm), stamp.ravel(), 
+		#                           p0=fit_guess, maxfev=20000,
+		#                           bounds = ((0,np.min(c2_v_cut),np.min(c1_v_cut),0,0,0,0),
+		#                           			(10,np.max(c2_v_cut),np.max(c1_v_cut),100,100,360,10)))
+		#fit_gauss1d = utils.td_gaussian((c2_v_cutm,c1_v_cutm),*td_fit)
+		#fit_gauss = fit_gauss1d.reshape(c2_v_cut.size,c1_v_cut.size)
 
 		#-------------- 2D Quadratic Fit ------------------------------------------
 		#qd_fit, qd_cov = curve_fit(td_quad, (c2_v_cutm,c1_v_cutm), stamp.ravel(), maxfev=20000)
@@ -368,51 +491,82 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 
 		#------------ 2D Interpolation Max -------------------------------------
 		#f_stamp = interpolate.interp2d(c1_v_cut,c2_v_cut,stamp,kind='cubic')
-
+		#
 		#c1_v_oversample = np.linspace(np.min(c1_v_cut),np.max(c1_v_cut),c1_v_cut.size*100)
 		#c2_v_oversample = np.linspace(np.min(c2_v_cut),np.max(c2_v_cut),c2_v_cut.size*100)
-
+		#
 		#stamp_over = f_stamp(c1_v_oversample,c2_v_oversample)
 		#stamp_over_max_ind = np.where(stamp_over == np.max(stamp_over))
 		#rv1_imax = c1_v_oversample[stamp_over_max_ind[0][0]]
 		#rv2_imax = c2_v_oversample[stamp_over_max_ind[1][0]]
 
+		#------------ 2D Interpolation Max -------------------------------------
+		f_zoom = interpolate.interp2d(c1_v,c2_v,tod,kind='cubic')
+		
+		c1_v_oversample = np.linspace(np.min(c1_v),np.max(c1_v),c1_v.size*100)
+		c2_v_oversample = np.linspace(np.min(c2_v),np.max(c2_v),c2_v.size*100)
+		
+		print('Velocity Resolution:',c1_v[1]-c1_v[0])
+		print('Oversampled Velocity Resolution:',c1_v_oversample[1]-c1_v_oversample[0])
+
+		tod_max_ind = np.where(tod == np.max(tod))
+		
+		rv1_max = c1_v[tod_max_ind[0][0]]
+		rv2_max = c2_v[tod_max_ind[1][0]]
+
+
+		tod_over = f_zoom(c1_v_oversample,c2_v_oversample)
+		tod_over_max_ind = np.where(tod_over == np.max(tod_over))
+		rv1_imax = c1_v_oversample[tod_over_max_ind[0][0]]
+		rv2_imax = c2_v_oversample[tod_over_max_ind[1][0]]
+
+		peak = f_zoom(rv1_imax,rv2_imax)[0]
 
 		#Peak Height and Alpha value determinations
 		if alpha_fit == True:
-			alph_stamp = alpha_f[pg_ind-stamp_size:pg_ind+stamp_size+1,sg_ind-stamp_size:sg_ind+stamp_size+1]
-			f_alph_stamp = interpolate.interp2d(c1_v_cut,c2_v_cut,alph_stamp,kind='cubic')
+			#alph_stamp = alpha_f[pg_ind-stamp_size:pg_ind+stamp_size+1,sg_ind-stamp_size:sg_ind+stamp_size+1]
+			f_alph_zoom = interpolate.interp2d(c1_v,c2_v,alpha_f,kind='cubic')
 			
-			f_ratio = f_alph_stamp(td_fit[2],td_fit[1])[0]
+			f_ratio = f_alph_zoom(rv1_imax,rv2_imax)[0]
 
 		else:
 			f_ratio = alpha_in
 
-		f_stamp = interpolate.interp2d(c1_v_cut,c2_v_cut,stamp,kind='cubic')
-		peak = f_stamp(td_fit[2],td_fit[1])[0]
+		#f_zoom = interpolate.interp2d(c1_v_cut,c2_v_cut,stamp,kind='cubic')
+		#peak = f_stamp(td_fit[2],td_fit[1])[0]
 
-
-		spectra[t_f_names[k]]['tod_vals'] = np.array([td_fit[2],td_fit[1],f_ratio,peak])
+		spectra[t_f_names[k]]['tod_vals'] = np.array([rv1_imax+vel_guess[0],rv2_imax+vel_guess[1],f_ratio,peak])
 		spectra[t_f_names[k]]['tod_temps'] = np.array([temp1_name,temp2_name])
 
 		if results == True:
 			fig,ax = plt.subplots(1)
 			
-			ax.contour(c2_v_cut,c1_v_cut,stamp,100,colors='white')
-			ax.imshow(stamp,cmap='binary',extent=[np.min(c2_v_cut),np.max(c2_v_cut),
-			          							  np.min(c1_v_cut),np.max(c1_v_cut)])
+			norm_tod = ImageNormalize(tod,interval=ZScaleInterval(),stretch=LinearStretch())
+			cb = ax.imshow(tod,extent=[np.min(c2_v),np.max(c2_v),
+			     		   np.min(c1_v),np.max(c1_v)],origin='lower',
+			     		   norm=norm_tod,cmap='YlGnBu')
 
-			ax.plot(vel_guess[1],vel_guess[0],'ro',label='guess')
-			ax.plot(td_fit[1],td_fit[2],'o',color='orange',label='2D Gaussian Fit')
+			ax.contour(c2_v,c1_v,tod,cmap='YlGnBu_r',
+					   levels=np.arange(np.min(tod),np.max(tod),0.005))
+			ax.set_xlabel('Secondary Velocity (km/s)')
+			ax.set_ylabel('Primary Velocity (km/s)')
+			cbar = plt.colorbar(cb,format="%3.2f",ax=ax)
+			
+			ax.plot(0,0,'ro',label='guess')
+			#ax.plot(td_fit[1],td_fit[2],'o',color='orange',label='2D Gaussian Fit')
 			#ax.plot(rv2_q,rv1_q,'go',label='Quadratic Fit')
 			#ax.plot(c2_max,c1_max,'o',color='grey',label='Raw Max')
-			#ax.plot(rv2_imax,rv1_imax,'o',color='pink',label='Interp Max')
-
+			ax.plot(rv2_imax,rv1_imax,'o',color='k',label='Interp Max')
+			ax.plot(rv1_imax,rv2_imax,'D',color='k',label='Interp Max')
+			ax.plot(rv2_max,rv1_max,'^',color='k',label='Interp Max')
+			
+			ax.plot(c2_v,c1_v,':',color='k')
+			
 			print('Guess:   ',vel_guess[0],vel_guess[1])
 			#print 'Raw Max: ',c2_max,c1_max
-			print('2D Gauss:',td_fit[2],td_fit[1])
+			#print('2D Gauss:',td_fit[2],td_fit[1])
 			#print 'Quad:    ',rv2_q,rv1_q
-			#print 'Interp:  ',rv2_imax,rv1_imax
+			print('Interp:  ',rv1_imax,rv2_imax)
 
 			ax.legend()
 			ax.set_xlabel('Secondary Velocity (km/s)')
@@ -431,8 +585,8 @@ def todcor(t_f_names,t_spec1,t_spec2,vel_width=200.0,
 			if k == 0:
 				f.write('#Spectrum\tRV1\tRV2\tFlux Ratio\tPeak Height\n')
 			f.write(np.str(t_f_names[k])+'\t'+
-					np.str(np.round(td_fit[2],5))+'\t'+
-					np.str(np.round(td_fit[1],5))+'\t'+
+					#np.str(np.round(td_fit[2],5))+'\t'+
+					#np.str(np.round(td_fit[1],5))+'\t'+
 					#np.str(rv1_q)+'\t'+
 					#np.str(rv2_q)+'\t'+
 					#np.str(rv1_imax)+'\t'+
