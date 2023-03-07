@@ -1668,10 +1668,111 @@ def line(x,a,b):
 	return a*x + b
 
 
-def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_buffer=1.8,sigma_cut = 2,up_cut=1.5):
+def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_buffer=1.8,sigma_cut = 2,up_cut=1.5,path='/Users/bt9644/templates/PHOENIX/'):
 	'''
-	interactive function to measure li EWs
+	Interactive function to measure li EWs.
 
+	This function is appropriate for stars that have continuum. Mid M dwarfs
+	and later would be better suited to a empirical template subtraction 
+	method.
+
+	This function plots your spectrum and overlays a model of a given teff, logg,
+	rv, vsini, and instrumental broadening, to give some context for where the line
+	is and where continuum regions are. This is useful for rotationally broadened 
+	stars where weak lines bias your continuum level to lower values. 
+
+	Running the script pops up an interactive plotting window with the specrum
+	and the broadened tempalte above. Red points in the observed spectrum are the 
+	initial values that are used to define the continuum (from the sigma_cut 
+	parameter), which is shown as the horizontal blue line. 
+
+	Here you have the option to use the default values (y), create your own (n), or
+	quit (q).
+
+	If 'n', use the b key to mark continuum regions from left to right and the m key
+	mark the region you want to preform the numerical intergration of the EW, again,
+	left to right. Hit return to continue
+
+	The code then fits the continuum regions with a line via mcmc. The slope and 
+	y-intercept posteriors are randomly drawn from to normalize the spectrum 500 
+	times. In each of the 500 iterations the EW is numertically integrated over 
+	the specified window, where the bounds vary randomly over a resolution element. 
+	Gaussian noise is randomly added to the integration region at the level of the 
+	variance in the continuum regions.
+
+	The goal here is vary the things that go into the computation. 
+
+	The 500 bootstrap values are used to define the 50th percentile and 68% confidence
+	interval. 
+
+	A plot is output that shows the spectral regions used and the EW bootstrap 
+	posterior.
+
+	Parameters
+	----------
+	p_file : str or tuple
+		Name of a standard saphires spectral pickle, which is a 
+		dictionary with of wavelength and flux arrays with 'wav'
+		and 'flux' keywords, respectively. The arrays associated with 
+		each should have the shape of [values in a given order,order]
+		OR
+		A tuple with (wavelength,flux) arrays. They should be for the 
+		that contains the Li 6708 line.
+
+	teff : str
+		The teff of the star in question. Used in pulling a PHOENIX templatr
+		from the saphires spectral template library
+
+	logg : str
+		The logg of the star in question. Used in pulling a PHOENIX templatr
+		from the saphires spectral template library
+
+	rv : float
+		The observed rv of the star (not corrected for heliocentric motion). 
+		Used to shift the stellar spectrum to zero velocity.
+
+	vsini : float
+		The vsini of the star. Used to rotationally broaden the template
+
+	order : int
+		The order that has Li 6708. Only used if the p_file is a saphires
+		pickled dictionary. If you provide p_file with a (w,f) tuple, this 
+		parameter is ignored.
+		Default is 18, which is the Li order for LCO/NRES
+
+	w_conv : str
+		String defining the wavelength convention of the observed spectrum
+		Options are 'vac' or 'air'
+		Used to define the location of the line and pull the appropriate 
+		synthetic template from the saphires spectral template library
+		Default is 'vac', for LCO/NRES
+
+	R : float
+		Resolution of the spectrograph. Used to broaden the template
+		Default is 40000.0, for LCO/NRES
+
+	vel_buffer : float
+		Defines a extra buffer outside of the vsini of the line, which is 
+		used to set the width of the numerical integration.
+		Default is 1.8.
+
+	sigma_cut : int
+		Parameter for automated continuum region selection. Removes areas
+		that are a number sigma outliers given to this parameter.
+		Default is 2.
+
+	up_cut : float
+		Removed values from the observed/continuum normalilzed spectrum 
+		that have flux points above the given value. For removing suprious 
+		values. 
+		Default is 1.5
+
+	path : str
+		Local path to the saphires spectral template library.
+
+
+	Scripring usage
+	---------------
 	in terminal setup:
 	>>> cat *mcmc.dat > li_head_in.dat
 	>>> p_file_long,rv,vsini = np.loadtxt('li_head_in.dat',unpack=True,usecols=(0,7,8),dtype='U100,f,f',delimiter=',')
@@ -1681,7 +1782,8 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 			logg = p_file_long[i][-5:-2]
 			saph.utils.li_analysis(p_file,teff,logg,rv[i],vsini[i])
 
-
+	Notes
+	-----
 	Default continuum regions do an interative 3-sigma clip to remove detected line. Seems to
 	do a good job, but in principle it will underestimate the continuum level due to undetected
 	shallow lines, which will underestimate the li EW. So far, this has been less than the errors. 
@@ -1735,7 +1837,7 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 	#-------------------------------------------------------------------
 	#getting the model read in, continuum normalized, and broadeded
 	#-------------------------------------------------------------------
-	syn = pkl.load(open('/Users/bt9644/templates/PHOENIX/logg'+logg+'/lte0'+teff+'-'+logg+'0-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes_2800-11000_'+w_conv+'.p','rb'),encoding='latin')
+	syn = pkl.load(open(path+'logg'+logg+'/lte0'+teff+'-'+logg+'0-0.0.PHOENIX-ACES-AGSS-COND-2011-HiRes_2800-11000_'+w_conv+'.p','rb'),encoding='latin')
 	
 	w_syn_ha = syn['wav']
 	f_syn_ha = syn['flux']
@@ -1773,11 +1875,16 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 	f_syn_broad = 1.0-np.convolve(1.0-f_syncn_ls,rot_model,mode='same')
 
 	#------------------------------------------------------------------
-	# read in the pkl
+	# read in the spectra pkl
 	#------------------------------------------------------------------
-	hdu = pkl.load(open(p_file,'rb'))
-	f = hdu['flux'][order,:]
-	w_i = hdu['wav'][order,:]
+	if isinstance(p_file,str):
+		hdu = pkl.load(open(p_file,'rb'))
+		f = hdu['flux'][order,:]
+		w_i = hdu['wav'][order,:]
+
+	if isinstance(p_file,tuple):
+		f = p_file[0]
+		w_i = p_file[1]
 	
 	w_i = w_i/(1-(-rv/(c)))
 	
@@ -1848,7 +1955,7 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 	print('')
 	print('------')
 	print(p_file)
-	use_default = p_input('Use the default windows (continuum in dots, integration in lines), or quit? (y,n,q): ')
+	use_default = p_input('Use the default windows (continuum in red dots, integration within lines), or quit? (y,n,q): ')
 	print('')
 
 	while use_default not in ['y','n','q']:
@@ -1862,6 +1969,7 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 
 	if use_default == 'n':
 		print('Use b to mark continuum regions, m to mark integration range.')
+		print('Once done, press return to contiune.')
 
 		l_range = []
 		i_range = []
