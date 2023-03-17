@@ -769,7 +769,7 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,pmra=
 	return brv,bjd,bvcorr
 
 
-def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3):
+def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3,return_cont=False):
 	'''
 	Continuum normalizes a spectrum
 
@@ -829,7 +829,10 @@ def cont_norm(w,f,w_width=200.0,maxiter=15,lower=0.3,upper=2.0,nord=3):
 	cont = spl.value(w)[0]
 	f_norm = f/cont
 
-	return f_norm
+	if return_cont == False:
+		return f_norm
+	if return_cont == True:
+		return f_norm,cont
 
 
 def dd2sex(ra,dec,results=False):
@@ -2217,9 +2220,7 @@ def li_analysis(p_file,teff,logg,rv,vsini,order=18,w_conv='vac',R=40000.0,vel_bu
 	return
 
 
-def region_select_pkl(target,template=None,tar_stretch=True,
-    temp_stretch=True,reverse=False,dk_wav='wav',dk_flux='flux',
-    tell_file=None,jump_to=0,reg_file=None):
+def region_select_pkl(target,template=None,tar_stretch=True, temp_stretch=True,reverse=False,dk_wav='wav',dk_flux='flux', tell_file=None,jump_to=0,reg_file=None):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -2696,10 +2697,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,jump_to
 	return
 
 
-def region_select_ms(target,template=None,tar_stretch=True,
-    temp_stretch=True,reverse=False,t_order=0,temp_order=0,
-    header_wave=False,w_mult=1,igrins_default=False,
-    tell_file=None,jump_to=0,reg_file=None):
+def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,reverse=False,t_order=0,temp_order=0, header_wave=False,w_mult=1,igrins_default=False, tell_file=None,jump_to=0,reg_file=None):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -3731,6 +3729,129 @@ def trap_int(x,y,yerr=None,xerr=None,y_low=None,y_lowerr=None):
                                                     ((a+b)*werr/2.0)**2))
         
     return np.sum(int_step),np.sqrt(np.sum(int_step_err**2))
+
+
+def w2linevel(data,w_line,v_width,bvcorr,gamma,cn = False):
+	'''
+	A function to take in a spectrum in wavelength space and 
+	return a velocity spectrum of a specific line. 
+
+	Parameters
+    ----------
+    data : tuple or string
+    	If a tuple, data should have the form (w,f) where w is the wavelength array
+    	and f is the flux array. It is assumed that these arrays are one dimensional 
+    	and that they contain the line of iterest. 
+    	If a string, data can be the name of a saphires-friendly dictionary in pickle
+    	format, where the wavelength keyword is 'wav' and the flux keyword is 'flux'. 
+    	The function will read in the pickle and find the order the line resides in.
+
+    w_line : str or float
+    	The wavelength of the line you want to see the velocity structure of.
+    	There is a library of lines saved that you can call with a string. They are:
+    		'ha': 6562.79
+    		'hb': 4861.35
+    		'hg': 4340.472
+    		'hd': 4101.734
+    		'hep': 3970.075
+    		'hei': 5875.64
+    		'li': 6707.81
+
+	v_width : float
+		The width in velocity space (km/s) you want the output velocity spectrum in.
+		A value of 300 will return +/- 300 km/s centered on the line of interest.
+
+	bvcorr : float
+		The barycentric RV correction in km/s for the spectrum. It's shift if removed.
+		Leave as 0 if the spectrum is alreay corrected for barycentric motion.
+
+	gamma : float
+		The center of mass velocity for the object. It's shift is removed. 
+
+	cn : bool (optional)
+		Option to continuum normalize the input spectrum.
+		Current normalization parameters are:
+			w_width=200.0
+			maxiter=15
+			nord=3
+			lower=0.5
+			upper=0.5
+		A future version may make these parameters optional inputs, they may not be 
+		ideal for your spectrum
+
+    Returns
+    -------
+	vel : array
+
+	flux : array
+
+    Outputs
+    -------
+    None
+
+    Version History
+    ---------------
+    2016-12-06 - Start
+	'''
+	line_options = ['ha','hb','hg','hd','hep','hei','li']
+
+	if isinstance(w_line,str):
+		if w_line in line_options:
+			if w_line == 'ha':
+				w_line = 6562.79
+			if w_line == 'hb':
+				w_line = 4861.35
+			if w_line == 'hg':
+				w_line = 4340.472
+			if w_line == 'hd':
+				w_line = 4101.734
+			if w_line == 'hep':
+				w_line = 3970.075
+			if w_line == 'hei':
+				w_line = 5875.64
+			if w_line == 'li':
+				w_line = 6707.81
+		else:
+			print('The line sting you provided is not in the library.')
+			print('Options are:',line_options)
+			print('Enter your own wavelength in angstroms, or update the library.')
+	
+			return 0,0
+
+	if isinstance(data,tuple):
+		w = data[0]
+		f = data[1]
+
+	if isinstance(data,str):
+		spec = pkl.load(open(data,'rb'))
+		if len(spec['wav'].shape) > 1:
+			dw = np.zeros(spec['wav'].shape[0])
+			for i in range(dw.size):
+				dw[i] = np.abs(w_line - np.nanmedian(spec['wav'][i,:]))
+			order = dw == np.min(dw)
+			w = spec['wav'][order,:]
+			f = spec['flux'][order,:]
+		else:
+			w = spec['wav']
+			f = spec['flux']
+
+	f = f[~np.isnan(w)]
+	w = w[~np.isnan(w)]
+
+	w = w[~np.isnan(f)]
+	f = f[~np.isnan(f)]
+
+	if cn == True:
+		f = saph.utils.cont_norm(w,f,lower=0.5,upper=0.5)
+
+	w_cor = w/(1-((bvcorr-gamma)/(c)))
+
+	v = ((w_cor-w_line)/w_line)*c
+
+	v_out = v[(v>-v_width)&(v<v_width)]
+	f_out = f[(v>-v_width)&(v<v_width)]
+
+	return v_out,f_out
 
 
 def vac2air(w_vac):
