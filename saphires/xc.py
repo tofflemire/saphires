@@ -232,7 +232,7 @@ def todcor(t_f_names,tar_spec,temp_spec1,temp_spec2,vel_width=200.0,
 			print('See documentation for possible work arounds.')
 			print('')
 		
-		m = np.int(vel_width / v_spacing1)
+		m = int(vel_width / v_spacing1)
 
 		if (m/2.0 % 1) == 0:
 			m=m-1
@@ -274,8 +274,8 @@ def todcor(t_f_names,tar_spec,temp_spec1,temp_spec2,vel_width=200.0,
 		
 		for i in range(c1_v.size):
 			for j in range(c2_v.size):
-				i12 = i + np.int(m/2)+1
-				j12 = j + np.int(m/2)+1
+				i12 = i + int(m/2)+1
+				j12 = j + int(m/2)+1
 	
 				if alpha_fit != True:
 					tod[i,j] = c1[i] + alpha_p*c2[j] / np.sqrt(1.0 + 2.0*alpha_p*c12[j12-i12] + alpha_p**2)
@@ -373,7 +373,7 @@ def todcor(t_f_names,tar_spec,temp_spec1,temp_spec2,vel_width=200.0,
 
 		r = vel_spacing_new/c
 
-		max_size = np.int(np.log(max_w/(min_w+1))/np.log(1+r))
+		max_size = int(np.log(max_w/(min_w+1))/np.log(1+r))
 
 		tspec2_g = utils.prepare(t_f_names,tar_spec,temp_spec2_g,oversample=zoom_osample,
 								 vel_spacing=vel_spacing_new,set_spacing=(min_w,max_size))
@@ -391,7 +391,7 @@ def todcor(t_f_names,tar_spec,temp_spec1,temp_spec2,vel_width=200.0,
 			print('See documentation for possible work arounds.')
 			print('')
 		
-		mz = np.int(zoom_vel_width / v_spacing1_g)
+		mz = int(zoom_vel_width / v_spacing1_g)
 
 		if (mz/2.0 % 1) == 0:
 			mz=mz-1
@@ -433,8 +433,8 @@ def todcor(t_f_names,tar_spec,temp_spec1,temp_spec2,vel_width=200.0,
 		
 		for i in range(c1_v.size):
 			for j in range(c2_v.size):
-				i12 = i + np.int(m/2)+1
-				j12 = j + np.int(m/2)+1
+				i12 = i + int(m/2)+1
+				j12 = j + int(m/2)+1
 	
 				if alpha_fit != True:
 					tod[i,j] = c1[i] + alpha_p*c2[j] / np.sqrt(1.0 + 2.0*alpha_p*c12[j12-i12] + alpha_p**2)
@@ -584,15 +584,15 @@ def todcor(t_f_names,tar_spec,temp_spec1,temp_spec2,vel_width=200.0,
 		if text_out == True:
 			if k == 0:
 				f.write('#Spectrum\tRV1\tRV2\tFlux Ratio\tPeak Height\n')
-			f.write(np.str(t_f_names[k])+'\t'+
-					#np.str(np.round(td_fit[2],5))+'\t'+
-					#np.str(np.round(td_fit[1],5))+'\t'+
-					#np.str(rv1_q)+'\t'+
-					#np.str(rv2_q)+'\t'+
-					#np.str(rv1_imax)+'\t'+
-					#np.str(rv2_imax)+'\t'+
-					np.str(np.round(f_ratio,3))+'\t'+
-					np.str(np.round(peak,3))+'\n')
+			f.write(str(t_f_names[k])+'\t'+
+					#str(np.round(td_fit[2],5))+'\t'+
+					#str(np.round(td_fit[1],5))+'\t'+
+					#str(rv1_q)+'\t'+
+					#str(rv2_q)+'\t'+
+					#str(rv1_imax)+'\t'+
+					#str(rv2_imax)+'\t'+
+					str(np.round(f_ratio,3))+'\t'+
+					str(np.round(peak,3))+'\n')
 
 		vel_guess = []
 
@@ -611,7 +611,7 @@ def ccf(t_f_names,t_spec1,vel_width=200.0):
 		
 		v_spacing1 = t_spec1[t_f_names[k]]['vel_spacing']
 		
-		m = np.int(vel_width / v_spacing1)
+		m = int(vel_width / v_spacing1)
 
 		if (m/2.0 % 1) == 0:
 			m=m-1
@@ -748,7 +748,7 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,sig_clip=False)
 	weight = np.zeros(t_f_names[good_orders].size)
 	for i in range(t_f_names[good_orders].size):
 		if (vel_gt_lt == None):
-			stds[i] = np.std([ccfs[i,:][:np.int(v.size*std_perc)], ccfs[i,:][-np.int(v.size*std_perc):]])
+			stds[i] = np.std([ccfs[i,:][:int(v.size*std_perc)], ccfs[i,:][-int(v.size*std_perc):]])
 		if (vel_gt_lt != None):
 			stds[i] = np.std(ccfs[i,:][(v > vel_gt_lt[0]) | (v < vel_gt_lt[1])])
 

@@ -190,7 +190,7 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 			w_rc1 = w_range.split('-')
 			for j in range(len(w_rc1)):
 				for k in range(len(w_rc1[j].split(','))):
-					w_split = np.append(w_split,np.float(w_rc1[j].split(',')[k]))
+					w_split = np.append(w_split,float(w_rc1[j].split(',')[k]))
 
 			w_split_shift = w_split/(1-(-rv_shift/(c)))
 
@@ -572,6 +572,7 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,pmra=
 	- dct - (e.g. IGRINS at DCT)
 	- keck - (Keck Hi-Res)
 	- smarts15 - (e.g. CHIRON)
+	- hpf - (e.g. HPF)
 
 	returns
 	brv,bjd,bvcorr
@@ -699,6 +700,19 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,pmra=
 			lon = -110.8775
 			#From a TRES header 
 			#1.5-meter Tillinghast telescope at the Smithsonian Astrophysical Observatory's Fred L. Whipple Observatory on Mt. Hopkins in Arizona
+
+		if observat[i] == 'het':
+			alt = 2026.0
+			lat = 30.681389
+			lon = 255.985278
+			#https://github.com/astropy/astropy-data/blob/gh-pages/coordinates/sites.json
+
+		if observat[i] == 'lco-tfn':
+			alt = 2390.0
+			lat = 28.3003080
+			lon = -16.5117030
+			#from a header
+			#LCO 0.4m Tenerife node
 
 	
 		if isinstance(ra,str):
@@ -1273,7 +1287,7 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 	'''
 	n_orders = t_f_names[t_f_names!='Combined'].size
 
-	n_orders_out = int(n_orders/np.float(n_comb))
+	n_orders_out = int(n_orders/float(n_comb))
 
 	spectra_out = {}
 	t_f_names_out = np.zeros(n_orders_out,dtype=nplts+'1000')
@@ -1617,11 +1631,11 @@ def cr_trim_spec(f,w,val):
 			val_i = -1.5
 			step = 0.05
 			thresh = 0.005
-			frac = np.sum((f < val_i))/np.float(f.size)
+			frac = np.sum((f < val_i))/float(f.size)
 
 			while frac < thresh:
 				val_i = val_i + step
-				frac = np.sum((f < val_i))/np.float(f.size)
+				frac = np.sum((f < val_i))/float(f.size)
 			
 			f_f = interpolate.interp1d(w[f > val_i],f[f > val_i])
 			w = w[(w >= np.min(w[f > val_i]))&(w <= np.max(w[f > val_i]))]
@@ -2445,8 +2459,8 @@ def region_select_pkl(target,template=None,tar_stretch=True, temp_stretch=True,r
 				reg_ind = np.where(reg_order == i_ind)[0][0]
 				n_regions=len(str(w_string[reg_ind]).split('-'))-1
 				for j in range(n_regions):
-					w_reg_start = np.float(w_string[reg_ind].split(',')[j].split('-')[0])
-					w_reg_end = np.float(w_string[reg_ind].split(',')[j].split('-')[1])
+					w_reg_start = float(w_string[reg_ind].split(',')[j].split('-')[0])
+					w_reg_end = float(w_string[reg_ind].split(',')[j].split('-')[1])
 					ax[0].axvline(w_reg_start,ls='-',color='grey')
 					ax[0].axvline(w_reg_end,ls='--',color='grey')
 					ax[1].axvline(w_reg_start,ls='-',color='grey')
@@ -2899,11 +2913,11 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 		#---- Read in the Target -----
 		if header_wave == 'Single':
 			flux=hdulist[i_ind].data
-			w0=np.float(hdulist[i_ind].header['CRVAL1'])
-			dw=np.float(hdulist[i_ind].header['CDELT1'])
+			w0=float(hdulist[i_ind].header['CRVAL1'])
+			dw=float(hdulist[i_ind].header['CDELT1'])
 
 			if 'LTV1' in hdulist[i_ind].header:
-				shift=np.float(hdulist[i_ind].header['LTV1'])
+				shift=float(hdulist[i_ind].header['LTV1'])
 				w0=w0-shift*dw
 
 			w0=w0 * w_mult
@@ -2915,7 +2929,7 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 			flux = hdulist[t_order].data[i_ind]
 			
 			w = hdulist[1].data[i_ind]*w_mult
-			dw=(np.max(w) - np.min(w))/np.float(w.size)
+			dw=(np.max(w) - np.min(w))/float(w.size)
 
 		print(header_wave)
 		print(order,t_order,i_ind)
@@ -2975,16 +2989,16 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 				print('Aborting...')
 				return 
 
-			w_type = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
+			w_type = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
 			if w_type != 0:
 				print('Your header wavelength solution is not linear')
 				print('Non-linear wavelength solutions are not currently supported')
 				print('Aborting...')
 				return 
 				
-			w0 = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
-			dw = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
-			z = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
+			w0 = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
+			dw = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
+			z = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
 
 			w = ((np.arange(flux.size)*dw+w0)/(1+z))*w_mult
 
@@ -2992,11 +3006,11 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 		#---- Read in the Template -----
 		if header_wave == 'Single':
 			t_flux=t_hdulist[i_ind].data
-			t_w0=np.float(t_hdulist[i_ind].header['CRVAL1'])
-			t_dw=np.float(t_hdulist[i_ind].header['CDELT1'])
+			t_w0=float(t_hdulist[i_ind].header['CRVAL1'])
+			t_dw=float(t_hdulist[i_ind].header['CDELT1'])
 
 			if 'LTV1' in t_hdulist[i_ind].header:
-				t_shift=np.float(t_hdulist[i_ind].header['LTV1'])
+				t_shift=float(t_hdulist[i_ind].header['LTV1'])
 				t_w0=t_w0-t_shift*t_dw
 
 			t_w0=t_w0 * w_mult
@@ -3008,7 +3022,7 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 			t_flux = t_hdulist[temp_order].data[i_ind]
 			
 			t_w = t_hdulist[1].data[i_ind]*w_mult
-			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
+			t_dw=(np.max(t_w) - np.min(t_w))/float(t_w.size)
 
 		if header_wave == True:
 			t_flux = t_hdulist[temp_order].data[i_ind]
@@ -3045,16 +3059,16 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 				print('Aborting...')
 				return 
 
-			w_type = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
+			w_type = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
 			if w_type != 0:
 				print('Your header wavelength solution is not linear')
 				print('Non-linear wavelength solutions are not currently supported')
 				print('Aborting...')
 				return 
 				
-			t_w0 = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
-			t_dw = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
-			z = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
+			t_w0 = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
+			t_dw = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
+			z = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
 
 			t_w = ((np.arange(t_flux.size)*t_dw+t_w0)/(1+z))*w_mult
 
@@ -3101,8 +3115,8 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 					i_reg = np.where(reg_order == i_ind)[0][0]
 					n_regions=len(str(w_string[i_reg]).split('-'))-1
 					for j in range(n_regions):
-						w_reg_start = np.float(w_string[i_reg].split(',')[j].split('-')[0])
-						w_reg_end = np.float(w_string[i_reg].split(',')[j].split('-')[1])
+						w_reg_start = float(w_string[i_reg].split(',')[j].split('-')[0])
+						w_reg_end = float(w_string[i_reg].split(',')[j].split('-')[1])
 						ax[0].axvline(w_reg_start,ls='-',color='grey')
 						ax[0].axvline(w_reg_end,ls='--',color='grey')
 						ax[1].axvline(w_reg_start,ls='-',color='grey')
@@ -3202,12 +3216,12 @@ def sex2dd(ra,dec,results=False):
     
     
     if type(ra) is np.ndarray:
-        rah=np.array([np.float(ra[d][0:2]) for d in range(ra.size)])
-        ram=np.array([np.float(ra[d][3:5]) for d in range(ra.size)])
-        ras=np.array([np.float(ra[d][6:]) for d in range(ra.size)])
-        decd=np.array([np.float(dec[d][0:3]) for d in range(ra.size)])
-        decm=np.array([np.float(dec[d][4:6]) for d in range(ra.size)])
-        decs=np.array([np.float(dec[d][7:]) for d in range(ra.size)])      
+        rah=np.array([float(ra[d][0:2]) for d in range(ra.size)])
+        ram=np.array([float(ra[d][3:5]) for d in range(ra.size)])
+        ras=np.array([float(ra[d][6:]) for d in range(ra.size)])
+        decd=np.array([float(dec[d][0:3]) for d in range(ra.size)])
+        decm=np.array([float(dec[d][4:6]) for d in range(ra.size)])
+        decs=np.array([float(dec[d][7:]) for d in range(ra.size)])      
         radd=((rah+ram/60.0+ras/3600.0)/24.0)*360.0
         for i in range(decd.size):
             if dec[i][0] == '+':
@@ -3216,12 +3230,12 @@ def sex2dd(ra,dec,results=False):
                 decdd=-(np.abs(decd)+decm/60.0+decs/3600.0)
 
     if type(ra) is str:
-        rah=np.array(np.float(ra[0:2]))
-        ram=np.array(np.float(ra[3:5]))
-        ras=np.array(np.float(ra[6:]))
-        decd=np.array(np.float(dec[0:3]))
-        decm=np.array(np.float(dec[4:6]))
-        decs=np.array(np.float(dec[7:]))
+        rah=np.array(float(ra[0:2]))
+        ram=np.array(float(ra[3:5]))
+        ras=np.array(float(ra[6:]))
+        decd=np.array(float(dec[0:3]))
+        decm=np.array(float(dec[4:6]))
+        decs=np.array(float(dec[7:]))
         radd=((rah+ram/60.0+ras/3600.0)/24.0)*360.0
         if dec[0] == '+':
             decdd=(decd+decm/60.0+decs/3600.0)
@@ -3400,7 +3414,7 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 			w_start=str(w_range).split(',')[j].split('-')[0]
 			w_end=str(w_range).split(',')[j].split('-')[1]
 			
-			t_ind[(w_tar >= np.float(w_start)) & (w_tar <= np.float(w_end))] = True
+			t_ind[(w_tar >= float(w_start)) & (w_tar <= float(w_end))] = True
 
 		if temp_trim != '*':
 
@@ -3409,29 +3423,29 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 			for j in range(n_regions+1):
 				if j == 0:
 					w_start=str(temp_trim).split('-')[j]
-					if np.min(w_tar) < np.float(w_start):
-						t_ind[w_tar <= np.float(w_start)] = False
+					if np.min(w_tar) < float(w_start):
+						t_ind[w_tar <= float(w_start)] = False
 
 				if (j > 0) & (j < n_regions-1):
 					i_range=str(temp_trim).split('-')[j]
 					w_start=i_range.split(',')[0]
 					w_end=i_range.split(',')[1]
-					if (np.min(w_tar) > np.float(w_start)) & (np.min(w_tar) < np.float(w_end)):
-						t_ind[w_tar < np.float(w_end)] = False
+					if (np.min(w_tar) > float(w_start)) & (np.min(w_tar) < float(w_end)):
+						t_ind[w_tar < float(w_end)] = False
 
-					if (np.min(w_tar) < np.float(w_start)) & (np.max(w_tar) > np.float(w_end)):
-						t_ind[(w_tar > np.float(w_start)) & 
-								(w_tar < np.float(w_end))] = False
+					if (np.min(w_tar) < float(w_start)) & (np.max(w_tar) > float(w_end)):
+						t_ind[(w_tar > float(w_start)) & 
+								(w_tar < float(w_end))] = False
 
-					if (np.max(w_tar) > np.float(w_start)) & (np.max(w_tar) < np.float(w_end)):
-						t_ind[w_tar > np.float(w_start)] = False
+					if (np.max(w_tar) > float(w_start)) & (np.max(w_tar) < float(w_end)):
+						t_ind[w_tar > float(w_start)] = False
 
 				if j == n_regions:
 					w_end=str(temp_trim).split('-')[-1]
-					if (np.max(w_tar) < np.float(w_end)):
-						t_ind[w_tar > np.float(w_end)] = False
-					if (np.min(w_tar) > np.float(w_end)):
-						t_ind[w_tar > np.float(w_end)] = False
+					if (np.max(w_tar) < float(w_end)):
+						t_ind[w_tar > float(w_end)] = False
+					if (np.min(w_tar) > float(w_end)):
+						t_ind[w_tar > float(w_end)] = False
 
 	if ((temp_trim != '*') & (w_range == '*')):
 
@@ -3442,8 +3456,8 @@ def spec_trim(w_tar,f,w_range,temp_trim,trim_style='clip'):
 		for j in range(n_regions):
 			w_start=str(temp_trim).split(',')[j].split('-')[0]
 			w_end=str(temp_trim).split(',')[j].split('-')[1]
-			t_ind[(w_tar >= np.float(w_start)) & 
-				(w_tar <= np.float(w_end))] = True
+			t_ind[(w_tar >= float(w_start)) & 
+				(w_tar <= float(w_end))] = True
 
 	if ((w_range == '*') & (temp_trim == '*')):
 		t_ind = np.ones(w_tar.size,dtype=bool)
@@ -3540,11 +3554,11 @@ def spec_ccf(f_s,f_t,m,v_spacing):
 		if ccf_i < 0:
 			ccf[i] = (np.sum( f_s_ccf[:ccf_i] * 
 			                 np.roll(f_t_ccf,ccf_i)[:ccf_i] ) / 
-			          np.float(f_s_ccf[:ccf_i].size))
+			          float(f_s_ccf[:ccf_i].size))
 		if ccf_i >=0:
 			ccf[i] = (np.sum( f_s_ccf[ccf_i:] * 
 			                 np.roll(f_t_ccf,ccf_i)[ccf_i:] ) / 
-					  np.float(f_s_ccf[ccf_i:].size))
+					  float(f_s_ccf[ccf_i:].size))
 
 	ccf_v = (np.arange(ccf.size)-(ccf.size-1)//2)*v_spacing
 
@@ -3597,8 +3611,8 @@ def td_gaussian(xy_ins, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
 
 	'''
 	x,y = xy_ins
-	xo = np.float(xo)
-	yo = np.float(yo)    
+	xo = float(xo)
+	yo = float(yo)    
 	a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
 	b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
 	c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)

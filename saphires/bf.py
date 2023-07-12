@@ -134,9 +134,9 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 	for i in range(t_f_names.size):
 		if type(spectra[t_f_names[i]]['vwave']) != float:
 
-			w_unique[i] = (np.str(np.min(spectra[t_f_names[i]]['nwave']))+' '+
-						   np.str(np.max(spectra[t_f_names[i]]['nwave']))+' '+
-						   np.str((spectra[t_f_names[i]]['nwave']).size))
+			w_unique[i] = (str(np.min(spectra[t_f_names[i]]['nwave']))+' '+
+						   str(np.max(spectra[t_f_names[i]]['nwave']))+' '+
+						   str((spectra[t_f_names[i]]['nwave']).size))
 		if type(spectra[t_f_names[i]]['vwave']) == float:
 			w_unique[i] = '0'
 
@@ -146,7 +146,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 	if multiple_p == False:
 		for i in range(w_unique_ind.size):
 
-			m = np.int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
+			m = int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
 			if (m/2.0 % 1) == 0:
 				m=m-1
 
@@ -199,7 +199,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 #skip
 def compute_helper(i,vel_width,spectra,t_f_names,matrix_out,return_value_dict):
 
-	m = np.int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
+	m = int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
 	if (m/2.0 % 1) == 0:
 		m=m-1
 
@@ -347,7 +347,7 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 	weight = np.zeros(t_f_names[good_orders].size)
 	for i in range(t_f_names[good_orders].size):
 		if ((bf_sig == False) & (vel_gt_lt == None)):
-			stds[i] = np.std([bfs[i,:][:np.int(v.size*std_perc)], bfs[i,:][-np.int(v.size*std_perc):]])
+			stds[i] = np.std([bfs[i,:][:int(v.size*std_perc)], bfs[i,:][-int(v.size*std_perc):]])
 		if ((bf_sig == False) & (vel_gt_lt != None)):
 			stds[i] = np.std(bfs[i,:][(v > vel_gt_lt[0]) | (v < vel_gt_lt[1])])
 		if bf_sig == True:

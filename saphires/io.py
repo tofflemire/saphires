@@ -310,10 +310,10 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 			t_w = t_w*w_mult
 
 			if in_type in direct:
-				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+				w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 			if in_type in ord_list:
 				if w_range[j] == '*':
-					w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+					w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 				else:
 					w_range_out = w_range[j]
 
@@ -325,26 +325,32 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 			t_w=t_w[~np.isnan(t_flux)]
 			t_flux=t_flux[~np.isnan(t_flux)]
 
+			#remove inf values
+			t_w=t_w[np.isfinite(t_flux)]
+			t_flux=t_flux[np.isfinite(t_flux)]
+
 			if norm == True:
 				t_flux = t_flux / np.median(t_flux)
-				if temp == False:
-					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
+				try:
+					if temp == False:
+						t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
 			                         		 lower=norm_lower,upper=norm_upper,nord=norm_nord)
-				if temp == True:
-					t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
+					if temp == True:
+						t_flux = utils.cont_norm(t_w,t_flux,w_width=norm_w_width,maxiter=norm_maxiter,
 			                         		 lower=norm_lower,upper=norm_upper,nord=norm_nord)
-
+				except:
+					print('No valid data points for order '+str(j_ind))
 
 			t_flux = 1.0 - t_flux
 
-			w_min=np.int(np.min(t_w))
-			w_max=np.int(np.max(t_w))
+			w_min=int(np.min(t_w))
+			w_max=int(np.max(t_w))
 
 			t_dw = np.median(t_w - np.roll(t_w,1))
 
 			t_f_names_out=np.append(t_f_names_out,
-			                        t_f_names[i]+'['+np.str(j_ind)+']['+np.str(w_min)+'-'+
-			                        np.str(w_max)+']')
+			                        t_f_names[i]+'['+str(j_ind)+']['+str(w_min)+'-'+
+			                        str(w_max)+']')
 
 			t_spectra[t_f_names_out[-1]]={'nflux': t_flux,
 										  'nwave': t_w,
@@ -372,8 +378,8 @@ def read_pkl(spectra_list,temp=False,combine_all=True,norm=True,w_mult=1.0,
 			if t_f_names_out.size == 1:
 					w_range_all = t_spectra[t_f_names_out[i]]['w_region']
 
-		w_min=np.int(np.min(w_all))
-		w_max=np.int(np.max(w_all))
+		w_min=int(np.min(w_all))
+		w_max=int(np.max(w_all))
 
 		t_dw = np.median(w_all - np.roll(w_all,1))
 
@@ -567,11 +573,11 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 	for i in range(t_f_names.size):
 		t_hdulist=pyfits.open(t_f_names[i])
 		t_flux=t_hdulist[0].data
-		t_w0=np.float(t_hdulist[0].header['CRVAL1'])
-		t_dw=np.float(t_hdulist[0].header['CDELT1'])
+		t_w0=float(t_hdulist[0].header['CRVAL1'])
+		t_dw=float(t_hdulist[0].header['CDELT1'])
 
 		if 'LTV1' in t_hdulist[0].header:
-			t_shift=np.float(t_hdulist[0].header['LTV1'])
+			t_shift=float(t_hdulist[0].header['LTV1'])
 			t_w0=t_w0-t_shift*t_dw
 
 		t_w0=t_w0 * w_mult
@@ -597,17 +603,17 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 		t_flux=1.0-t_flux
 
 		if in_type in direct:
-				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+				w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 		if in_type in ord_list:
 			if w_range[i] == '*':
-				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+				w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 			else:
 				w_range_out = w_range[i]
 
 
 		t_f_names_out=np.append(t_f_names_out,
-			                        t_f_names[i]+'['+np.str(order[i])+']['+np.str(np.int(np.min(t_w)))+'-'+
-			                        np.str(np.int(np.max(t_w)))+']')
+			                        t_f_names[i]+'['+str(order[i])+']['+str(int(np.min(t_w)))+'-'+
+			                        str(int(np.max(t_w)))+']')
 
 		t_spectra[t_f_names_out[-1]]={'nflux': t_flux,
 									  'nwave': t_w,
@@ -635,8 +641,8 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			if t_f_names_out.size == 1:
 					w_range_all = t_spectra[t_f_names_out[i]]['w_region']
 
-		w_min=np.int(np.min(w_all))
-		w_max=np.int(np.max(w_all))
+		w_min=int(np.min(w_all))
+		w_max=int(np.max(w_all))
 
 		t_dw = np.median(w_all - np.roll(w_all,1))
 
@@ -853,11 +859,11 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 		
 		if header_wave == 'Single':
 			t_flux=t_hdulist[order[i]].data
-			t_w0=np.float(t_hdulist[order[i]].header['CRVAL1'])
-			t_dw=np.float(t_hdulist[order[i]].header['CDELT1'])
+			t_w0=float(t_hdulist[order[i]].header['CRVAL1'])
+			t_dw=float(t_hdulist[order[i]].header['CDELT1'])
 
 			if 'LTV1' in t_hdulist[order[i]].header:
-				t_shift=np.float(t_hdulist[order[i]].header['LTV1'])
+				t_shift=float(t_hdulist[order[i]].header['LTV1'])
 				t_w0=t_w0-t_shift*t_dw
 
 			t_w0=t_w0 * w_mult
@@ -869,7 +875,7 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			t_flux = t_hdulist[0].data[order[i]]
 			
 			t_w = t_hdulist[1].data[order[i]]*w_mult
-			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
+			t_dw=(np.max(t_w) - np.min(t_w))/float(t_w.size)
 
 		if header_wave == True:
 			t_flux = t_hdulist[0].data[order[i]]
@@ -906,16 +912,16 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 				print('Aborting...')
 				return 
 
-			w_type = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
+			w_type = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[3])
 			if w_type != 0:
 				print('Your header wavelength solution is not linear')
 				print('Non-linear wavelength solutions are not currently supported')
 				print('Aborting...')
 				return 
 				
-			w0 = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
-			t_dw = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
-			z = np.float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
+			w0 = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[5])
+			t_dw = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[6])
+			z = float(w_sol_str.split('spec')[1:][order[i]].split(' ')[7])
 
 			t_w = ((np.arange(t_flux.size)*t_dw+w0)/(1+z))*w_mult
 
@@ -934,13 +940,13 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			t_flux = t_hdulist[3].data[order[i]]
 			
 			t_w = t_hdulist[1].data[order[i]]*w_mult
-			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
+			t_dw=(np.max(t_w) - np.min(t_w))/float(t_w.size)
 
 		if header_wave == 'igrins_tell_self':
 			t_flux = t_hdulist[2].data[order[i]]
 			
 			t_w = t_hdulist[1].data[order[i]]*w_mult
-			t_dw=(np.max(t_w) - np.min(t_w))/np.float(t_w.size)
+			t_dw=(np.max(t_w) - np.min(t_w))/float(t_w.size)
 
 		#get rid of nans
 		t_w=t_w[~np.isnan(t_flux)]
@@ -957,17 +963,17 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 		t_flux=1.0-t_flux
 
 		if in_type in direct:
-				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+				w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 		if in_type in ord_list:
 			if w_range[i] == '*':
-				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+				w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 			else:
 				w_range_out = w_range[i]
 
 
 		t_f_names_out=np.append(t_f_names_out,
-			                        t_f_names[i]+'['+np.str(order[i])+']['+np.str(np.int(np.min(t_w)))+'-'+
-			                        np.str(np.int(np.max(t_w)))+']')
+			                        t_f_names[i]+'['+str(order[i])+']['+str(int(np.min(t_w)))+'-'+
+			                        str(int(np.max(t_w)))+']')
 
 		t_spectra[t_f_names_out[-1]]={'nflux': t_flux,
 									  'nwave': t_w,
@@ -995,8 +1001,8 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			if t_f_names_out.size == 1:
 					w_range_all = t_spectra[t_f_names_out[i]]['w_region']
 
-		w_min=np.int(np.min(w_all))
-		w_max=np.int(np.max(w_all))
+		w_min=int(np.min(w_all))
+		w_max=int(np.max(w_all))
 
 		t_dw = np.median(w_all - np.roll(w_all,1))
 
@@ -1207,10 +1213,10 @@ def read_vars(w,f,name,w_file=None,temp=False,combine_all=True,norm=True,w_mult=
 			t_w = w[j_ind]
 
 		if wave_reg == False:
-			w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+			w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 		if wave_reg == True:
 			if w_range[j] == '*':
-				w_range_out = np.str(np.int(np.min(t_w)))+'-'+np.str(np.int(np.max(t_w)))
+				w_range_out = str(int(np.min(t_w)))+'-'+str(int(np.max(t_w)))
 			else:
 				w_range_out = w_range[j]
 
@@ -1229,14 +1235,14 @@ def read_vars(w,f,name,w_file=None,temp=False,combine_all=True,norm=True,w_mult=
 
 		t_flux = 1.0 - t_flux
 
-		w_min=np.int(np.min(t_w))
-		w_max=np.int(np.max(t_w))
+		w_min=int(np.min(t_w))
+		w_max=int(np.max(t_w))
 
 		t_dw = np.median(t_w - np.roll(t_w,1))
 
 		t_f_names_out=np.append(t_f_names_out,
-		                        name+'['+np.str(j_ind)+']['+np.str(w_min)+'-'+
-		                        np.str(w_max)+']')
+		                        name+'['+str(j_ind)+']['+str(w_min)+'-'+
+		                        str(w_max)+']')
 
 		t_spectra[t_f_names_out[-1]]={'nflux': t_flux,
 									  'nwave': t_w,
@@ -1264,8 +1270,8 @@ def read_vars(w,f,name,w_file=None,temp=False,combine_all=True,norm=True,w_mult=
 			if t_f_names_out.size == 1:
 					w_range_all = t_spectra[t_f_names_out[i]]['w_region']
 
-		w_min=np.int(np.min(w_all))
-		w_max=np.int(np.max(w_all))
+		w_min=int(np.min(w_all))
+		w_max=int(np.max(w_all))
 
 		t_dw = np.median(w_all - np.roll(w_all,1))
 
