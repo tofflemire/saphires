@@ -197,9 +197,9 @@ def apply_shift(t_f_names,t_spectra,rv_shift,shift_style='basic'):
 			w_range_shift = ''
 			for j in range(w_split_shift.size):
 				if (j/2.0 % 1) == 0: #even
-					w_range_shift = w_range_shift + np.str(np.round(w_split_shift[j],2))+'-'
+					w_range_shift = w_range_shift + str(np.round(w_split_shift[j],2))+'-'
 				if (j/2.0 % 1) != 0: #odd
-					w_range_shift = w_range_shift + np.str(np.round(w_split_shift[j],2))+','
+					w_range_shift = w_range_shift + str(np.round(w_split_shift[j],2))+','
 
 			if w_range_shift[-1] == ',':
 				w_range_shift = w_range_shift[:-1]
@@ -321,17 +321,17 @@ def bf_singleplot(t_f_names,t_spectra,for_plotting,f_trim=20):
 		                                         gs_fit[0],gs_fit[1],
 		                                         gs_fit[2],gs_fit[9]),
 					lw=2,ls='--',color='b',
-					label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
+					label='Amp1: '+str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
 			ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
 		                                         gs_fit[3],gs_fit[4],
 		                                         gs_fit[5],gs_fit[9]),
 					lw=2,ls='--',color='r',
-					label='Amp2: '+np.str(np.round(gs_fit[3]*gs_fit[5]*np.sqrt(2.0*np.pi),3)))
+					label='Amp2: '+str(np.round(gs_fit[3]*gs_fit[5]*np.sqrt(2.0*np.pi),3)))
 			ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
 		                                         gs_fit[6],gs_fit[7],
 		                                         gs_fit[8],gs_fit[9]),
 					lw=2,ls='--',color='g',
-					label='Amp3: '+np.str(np.round(gs_fit[6]*gs_fit[8]*np.sqrt(2.0*np.pi),3)))
+					label='Amp3: '+str(np.round(gs_fit[6]*gs_fit[8]*np.sqrt(2.0*np.pi),3)))
 			ax.legend()
 			
 		if gs_fit.size == 7:
@@ -340,26 +340,26 @@ def bf_singleplot(t_f_names,t_spectra,for_plotting,f_trim=20):
 		    #	                                     gs_fit[0],gs_fit[1],
 		    #	                                     gs_fit[2],gs_fit[6]),
 			#			lw=2,ls='--',color='b',
-			#			label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
+			#			label='Amp1: '+str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
 			#
 			#	ax.plot(vel[f_trim:-f_trim],rot_pro(vel[f_trim:-f_trim],
 		    #	                                     gs_fit[3],gs_fit[4],
 		    #	                                     gs_fit[5],gs_fit[6]),
 			#			lw=2,ls='--',color='r',
-			#			label='Amp2: '+np.str(np.round(gs_fit[3],3)))
+			#			label='Amp2: '+str(np.round(gs_fit[3],3)))
 
 			if func == d_gaussian_off:
 				ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
 		    	                                     gs_fit[0],gs_fit[1],
 		    	                                     gs_fit[2],gs_fit[6]),
 						lw=2,ls='--',color='b',
-						label='Amp1: '+np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
+						label='Amp1: '+str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2.0*np.pi),3)))
 				
 				ax.plot(vel[f_trim:-f_trim],gaussian_off(vel[f_trim:-f_trim],
 		    	                                     gs_fit[3],gs_fit[4],
 		    	                                     gs_fit[5],gs_fit[6]),
 						lw=2,ls='--',color='r',
-						label='Amp2: '+np.str(np.round(gs_fit[3]*gs_fit[5]*np.sqrt(2.0*np.pi),3)))
+						label='Amp2: '+str(np.round(gs_fit[3]*gs_fit[5]*np.sqrt(2.0*np.pi),3)))
 			ax.legend()
 
 		ax.plot(vel[f_trim:-f_trim],func(vel[f_trim:-f_trim],*gs_fit),
@@ -503,50 +503,50 @@ def bf_text_output(ofname,target,template,gs_fit,rchis,rv_weight,fit_int):
 
 	if gs_fit.size==10:
 		peak_ind=np.argsort([gs_fit[0],gs_fit[3],gs_fit[6]])[::-1]*3+1
-		f.write(np.str(np.round(gs_fit[peak_ind[0]-1],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[0]],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[0]+1],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[0]-1]*
+		f.write(str(np.round(gs_fit[peak_ind[0]-1],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[0]],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[0]+1],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[0]-1]*
 		                        gs_fit[peak_ind[0]+1]*np.sqrt(2*np.pi),2))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[1]-1],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[1]],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[1]+1],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[1]-1]*
+		f.write(str(np.round(gs_fit[peak_ind[1]-1],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[1]],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[1]+1],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[1]-1]*
 		                        gs_fit[peak_ind[1]+1]*np.sqrt(2*np.pi),2))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[2]-1],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[2]],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[2]+1],4))+'\t')
-		f.write(np.str(np.round(gs_fit[peak_ind[2]-1]*
+		f.write(str(np.round(gs_fit[peak_ind[2]-1],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[2]],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[2]+1],4))+'\t')
+		f.write(str(np.round(gs_fit[peak_ind[2]-1]*
 		                        gs_fit[peak_ind[2]+1]*np.sqrt(2*np.pi),2))+'\t')
 
 	if gs_fit.size==7:
 		if fit_int[0]>fit_int[1]:
-			f.write(np.str(np.round(gs_fit[0],4))+'\t')
-			f.write(np.str(np.round(gs_fit[1],4))+'\t')
-			f.write(np.str(np.round(gs_fit[2],4))+'\t')
-			f.write(np.str(np.round(fit_int[0],2))+'\t')
-			f.write(np.str(np.round(gs_fit[3],4))+'\t')
-			f.write(np.str(np.round(gs_fit[4],4))+'\t')
-			f.write(np.str(np.round(gs_fit[5],4))+'\t')
-			f.write(np.str(np.round(fit_int[1],2))+'\t')
+			f.write(str(np.round(gs_fit[0],4))+'\t')
+			f.write(str(np.round(gs_fit[1],4))+'\t')
+			f.write(str(np.round(gs_fit[2],4))+'\t')
+			f.write(str(np.round(fit_int[0],2))+'\t')
+			f.write(str(np.round(gs_fit[3],4))+'\t')
+			f.write(str(np.round(gs_fit[4],4))+'\t')
+			f.write(str(np.round(gs_fit[5],4))+'\t')
+			f.write(str(np.round(fit_int[1],2))+'\t')
 		else:
-			f.write(np.str(np.round(gs_fit[3],4))+'\t')
-			f.write(np.str(np.round(gs_fit[4],4))+'\t')
-			f.write(np.str(np.round(gs_fit[5],4))+'\t')
-			f.write(np.str(np.round(fit_int[1],2))+'\t')
-			f.write(np.str(np.round(gs_fit[0],4))+'\t')
-			f.write(np.str(np.round(gs_fit[1],4))+'\t')
-			f.write(np.str(np.round(gs_fit[2],4))+'\t')
-			f.write(np.str(np.round(fit_int[0],2))+'\t')
+			f.write(str(np.round(gs_fit[3],4))+'\t')
+			f.write(str(np.round(gs_fit[4],4))+'\t')
+			f.write(str(np.round(gs_fit[5],4))+'\t')
+			f.write(str(np.round(fit_int[1],2))+'\t')
+			f.write(str(np.round(gs_fit[0],4))+'\t')
+			f.write(str(np.round(gs_fit[1],4))+'\t')
+			f.write(str(np.round(gs_fit[2],4))+'\t')
+			f.write(str(np.round(fit_int[0],2))+'\t')
 
 	if gs_fit.size==4:
-		f.write(np.str(np.round(gs_fit[0],4))+'\t')
-		f.write(np.str(np.round(gs_fit[1],4))+'\t')
-		f.write(np.str(np.round(gs_fit[2],4))+'\t')
-		f.write(np.str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2*np.pi),2))+'\t')
+		f.write(str(np.round(gs_fit[0],4))+'\t')
+		f.write(str(np.round(gs_fit[1],4))+'\t')
+		f.write(str(np.round(gs_fit[2],4))+'\t')
+		f.write(str(np.round(gs_fit[0]*gs_fit[2]*np.sqrt(2*np.pi),2))+'\t')
 	
-	f.write(np.str(np.round(rchis,3))+'\t')
-	f.write(np.str(np.round(rv_weight,3))+'\t')
+	f.write(str(np.round(rchis,3))+'\t')
+	f.write(str(np.round(rv_weight,3))+'\t')
 
 	f.write(target+'\t')
 	f.write(template+'\n')
@@ -714,6 +714,12 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,pmra=
 			#from a header
 			#LCO 0.4m Tenerife node
 
+		if observat[i] == 'lco-ogg':
+			alt = 3037.0
+			lat = 20.7069583
+			lon = -156.2575140
+			#from a header
+			#LCO 0.4m Haleakala node
 	
 		if isinstance(ra,str):
 			ra,dec = sex2dd(ra,dec)
@@ -906,9 +912,9 @@ def dd2sex(ra,dec,results=False):
 
     if results == True:
         for i in range(rah.size):
-            print(np.str(raho[i])+':'+np.str(ramo[i])+':'+ \
+            print(str(raho[i])+':'+str(ramo[i])+':'+ \
                 (str.format('{0:2.6f}',raso[i])).zfill(7)+', '+ \
-                np.str(decdo[i])+':'+np.str(decmo[i])+':'+ \
+                str(decdo[i])+':'+str(decmo[i])+':'+ \
                 (str.format('{0:2.6f}',decso[i])).zfill(7))
 
     return raho,ramo,raso,dec_sign,decdo,decmo,decso
@@ -955,7 +961,7 @@ def d_gaussian_off(x,A1,x01,sig1,A2,x02,sig2,o):
             A2*np.e**(-(x-x02)**2/(2.0*sig2**2))+o)
 
 
-def EWM(x,xerr,wstd=False):
+def EWM(x,xerr,wstd=False,variance_based=True):
     '''
     A function to return the error weighted mean of an array and the error on
     the error weighted mean. 
@@ -966,11 +972,20 @@ def EWM(x,xerr,wstd=False):
        An array of values you want the error weighted mean of. 
 
     xerr : array like
-       Array of associated one-sigma errors. 
+       Array of associated one-sigma errors (variance based), or a relative weight
+       (not variance based). Specify which with the variance_based option
 
     wstd : bool
         Option to return the error weighted standard deviation. If True, 
         three values are returned. The default is False.
+
+    variance_based : bool
+    	The weighted error calculation depends on whether the weights come from 
+    	measurement errors (i.e., based on the variance of the measurement),
+    	or some other non-variance, based weight. This keyword allows you to 
+    	specify the nature of the xerr provided. 
+    	Default is True
+
        
     Returns
     -------
@@ -994,7 +1009,14 @@ def EWM(x,xerr,wstd=False):
     '''
     weight = 1.0 / xerr**2
     xmean=np.sum(x/xerr**2)/np.sum(weight)
-    xmeanerr=1.0/np.sqrt(np.sum(weight))
+
+    if variance_based == True:
+    	xmeanerr=1.0/np.sqrt(np.sum(weight))
+
+    if variance_based == False:
+    	weight_norm = weight / np.sum(weight)
+    	sigma = np.std(x)
+    	xmeanerr = sigma * np.sqrt(np.sum(weight_norm**2))
 
     xwstd = np.sqrt(np.sum(weight*(x - xmean)**2) / ((np.sum(weight)*(x.size-1)) / x.size))
 
@@ -1331,7 +1353,7 @@ def order_stitch(t_f_names,spectra,n_comb,print_orders=True):
 
 		t_dw = np.median(w_all - np.roll(w_all,1))
 
-		t_f_names_out[i] = ('R'+np.str(i)+'['+np.str(i)+']['+np.str(w_min)+'-'+np.str(w_max)+']')
+		t_f_names_out[i] = ('R'+str(i)+'['+str(i)+']['+str(w_min)+'-'+str(w_max)+']')
 
 		if print_orders == True:
 			print(t_f_names_out[i],w_range_all)
@@ -1552,6 +1574,7 @@ def prepare(t_f_names,t_spectra,temp_spec,oversample=1,quiet=False,trap_apod=0,c
 				print(' ')
 			spectra[t_f_names[i]]['vwave'] = 0.0
 			spectra[t_f_names[i]]['order_flag'] = 0
+			spectra[t_f_names[i]]['vel_spacing'] = stepV
 			continue
 
 		f_tar = interpolate.interp1d(w_tar,flux_tar)
@@ -2436,7 +2459,7 @@ def region_select_pkl(target,template=None,tar_stretch=True, temp_stretch=True,r
 		#if ((w.size > 0) & (t_w.size > 0)):
 		fig,ax=plt.subplots(2,sharex=True,figsize=(14.25,7.5))
 	
-		ax[0].set_title('Target - '+np.str(i_ind))
+		ax[0].set_title('Target - '+str(i_ind))
 		ax[0].plot(w,flux)
 		if len(l_range) > 0:
 			for j in range(len(l_range)):
@@ -2470,9 +2493,9 @@ def region_select_pkl(target,template=None,tar_stretch=True, temp_stretch=True,r
 			ax[0].axis([np.min(w),np.max(w),
 		    	       np.median(flux)-np.median(flux)*0.5,
 		        	   np.median(flux)+np.median(flux)*0.5])
-		ax[0].grid(b=True,which='both',axis='both')
+		ax[0].grid(True,which='both',axis='both')
 	
-		ax[1].set_title('Template - '+np.str(i_ind))
+		ax[1].set_title('Template - '+str(i_ind))
 		ax[1].plot(t_w,t_flux)
 		if len(l_range) > 0:
 			for j in range(len(l_range)):
@@ -2484,7 +2507,7 @@ def region_select_pkl(target,template=None,tar_stretch=True, temp_stretch=True,r
 			ax[1].axis([np.min(t_w),np.max(t_w),
 			            np.median(t_flux)-np.median(t_flux)*0.5,
 			            np.median(t_flux)+np.median(t_flux)*0.5])
-		ax[1].grid(b=True,which='both',axis='both')
+		ax[1].grid(True,which='both',axis='both')
 	
 		plt.tight_layout()
 
@@ -2645,7 +2668,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,jump_to
 
 		fig,ax=plt.subplots(2,sharex=True,figsize=(14.25,7.5))
 
-		ax[0].set_title('Target - '+np.str(i_ind))
+		ax[0].set_title('Target - '+str(i_ind))
 		ax[0].plot(w_plot,flux_plot)
 		if len(l_range) > 0:
 			for j in range(len(l_range)):
@@ -2666,7 +2689,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,jump_to
 			ax[0].axis([np.min(w_plot),np.max(w_plot),
 		    	       np.median(flux_plot)-np.median(flux_plot)*0.5,
 		        	   np.median(flux_plot)+np.median(flux_plot)*0.5])
-		ax[0].grid(b=True,which='both',axis='both')
+		ax[0].grid(True,which='both',axis='both')
 
 		ax[1].plot(w_plot,flux_plot)
 		if len(l_range) > 0:
@@ -2675,7 +2698,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,jump_to
 		ax[1].set_ylabel('Flux')
 		ax[1].set_xlabel('Wavelength')		
 
-		ax[1].grid(b=True,which='both',axis='both')
+		ax[1].grid(True,which='both',axis='both')
 
 		plt.tight_layout()
 
@@ -3092,7 +3115,7 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 	
 		if ((w.size > 0) &(t_w.size > 0)):
 
-			ax[0].set_title('Target - '+np.str(i_ind))
+			ax[0].set_title('Target - '+str(i_ind))
 			ax[0].plot(w,flux)
 			if len(l_range) > 0:
 				for j in range(len(l_range)):
@@ -3126,9 +3149,9 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 				ax[0].axis([np.min(w),np.max(w),
 			    	       np.median(flux)-np.median(flux)*0.5,
 			        	   np.median(flux)+np.median(flux)*0.5])
-			ax[0].grid(b=True,which='both',axis='both')
+			ax[0].grid(True,which='both',axis='both')
 	
-			ax[1].set_title('Template - '+np.str(i_ind))
+			ax[1].set_title('Template - '+str(i_ind))
 			ax[1].plot(t_w,t_flux)
 			if len(l_range) > 0:
 				for j in range(len(l_range)):
@@ -3139,7 +3162,7 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 				ax[1].axis([np.min(t_w),np.max(t_w),
 				            np.median(t_flux)-np.median(t_flux)*0.5,
 				            np.median(t_flux)+np.median(t_flux)*0.5])
-			ax[1].grid(b=True,which='both',axis='both')
+			ax[1].grid(True,which='both',axis='both')
 	
 			plt.tight_layout()
 	

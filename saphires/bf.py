@@ -129,57 +129,59 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 
 	#The following does a bit of logic to see it the function can save time
 	#by using the same design matrix for mutiple science spectra
-	w_unique = np.zeros(t_f_names.size,dtype='S200')
+#	w_unique = np.zeros(t_f_names.size,dtype='S200')
+#
+#	for i in range(t_f_names.size):
+#		if type(spectra[t_f_names[i]]['vwave']) != float:
+#
+#			w_unique[i] = (str(np.min(spectra[t_f_names[i]]['nwave']))+' '+
+#						   str(np.max(spectra[t_f_names[i]]['nwave']))+' '+
+#						   str((spectra[t_f_names[i]]['nwave']).size))
+#		if type(spectra[t_f_names[i]]['vwave']) == float:
+#			w_unique[i] = '0'
 
-	for i in range(t_f_names.size):
-		if type(spectra[t_f_names[i]]['vwave']) != float:
-
-			w_unique[i] = (str(np.min(spectra[t_f_names[i]]['nwave']))+' '+
-						   str(np.max(spectra[t_f_names[i]]['nwave']))+' '+
-						   str((spectra[t_f_names[i]]['nwave']).size))
-		if type(spectra[t_f_names[i]]['vwave']) == float:
-			w_unique[i] = '0'
-
-	w_unique_ind = np.unique(w_unique[w_unique!='0'])
+#	w_unique_ind = np.unique(w_unique[w_unique!='0'])
 
 	#Run through each spectrum requiring unique design matrix to compute the BF
 	if multiple_p == False:
-		for i in range(w_unique_ind.size):
-
-			m = int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
-			if (m/2.0 % 1) == 0:
-				m=m-1
-
-			des=utils.bf_map(spectra[t_f_names[i]]['vflux_temp'],m)
-			u,ww,vt=np.linalg.svd(des, full_matrices=False)
-
-			if (ww.size < m) | (spectra[t_f_names[i]]['vflux_temp'].size < m):
-				if quiet==False:
-					print(t_f_names[i],t_spectra[t_f_names[i]]['w_region'])
-					print("The target region is too small for the vel_width value.")
-					print(ww.size*spectra[t_f_names[i]]['vel_spacing'],' versus ', vel_width)
-					print("You can either reduce vel_width or remove this order from the input or don't worry about it.")
-					print(' ')
-				spectra[t_f_names[i]]['order_flag'] = 0
+		for i in range(t_f_names.size):
+			if spectra[t_f_names[i]]['order_flag'] == 0:
 				continue
-
-			bf_sols,sig = utils.bf_solve(des,u,ww,vt,spectra[t_f_names[i]]['vflux'],m)
-
-			vel = spectra[t_f_names[i]]['vel_spacing']*(np.arange(m)-m//2)
-
-			spectra[t_f_names[i]]['bf']=bf_sols[m-1]
-			spectra[t_f_names[i]]['vel']=vel
-			spectra[t_f_names[i]]['bf_sig']=sig[m-1]
-
-			if matrix_out == True:
-				spectra[t_f_names[i]]['bf_matrix']=bf_sols
-				spectra[t_f_names[i]]['bf_sig_array']=sig
+			else:
+				m = int(vel_width / spectra[t_f_names[i]]['vel_spacing'])
+				if (m/2.0 % 1) == 0:
+					m=m-1
+	
+				des=utils.bf_map(spectra[t_f_names[i]]['vflux_temp'],m)
+				u,ww,vt=np.linalg.svd(des, full_matrices=False)
+	
+				if (ww.size < m) | (spectra[t_f_names[i]]['vflux_temp'].size < m):
+					if quiet==False:
+						print(t_f_names[i],t_spectra[t_f_names[i]]['w_region'])
+						print("The target region is too small for the vel_width value.")
+						print(ww.size*spectra[t_f_names[i]]['vel_spacing'],' versus ', vel_width)
+						print("You can either reduce vel_width or remove this order from the input or don't worry about it.")
+						print(' ')
+					spectra[t_f_names[i]]['order_flag'] = 0
+					continue
+	
+				bf_sols,sig = utils.bf_solve(des,u,ww,vt,spectra[t_f_names[i]]['vflux'],m)
+	
+				vel = spectra[t_f_names[i]]['vel_spacing']*(np.arange(m)-m//2)
+	
+				spectra[t_f_names[i]]['bf']=bf_sols[m-1]
+				spectra[t_f_names[i]]['vel']=vel
+				spectra[t_f_names[i]]['bf_sig']=sig[m-1]
+	
+				if matrix_out == True:
+					spectra[t_f_names[i]]['bf_matrix']=bf_sols
+					spectra[t_f_names[i]]['bf_sig_array']=sig
 
 	elif multiple_p == True:
 		processes = []
 		manager = mp.Manager()
 		return_dict = manager.dict()
-		for i in range(w_unique_ind.size):
+		for i in range(t_f_names.size):
 			p = mp.Process(target = compute_helper, args = (i,vel_width,spectra,t_f_names,matrix_out,return_dict))
 			processes.append(p)
 			p.start()
@@ -187,7 +189,7 @@ def compute(t_f_names,t_spectra,vel_width=200,quiet=False,matrix_out=False, mult
 		for p in processes:
 			p.join()
 
-		for i in range(w_unique_ind.size):#add values from multiprocessing back into the spectra
+		for i in range(t_f_names.size):#add values from multiprocessing back into the spectra
 			processes_ret_values = return_dict[i]
 			#creating spectra keyword for new keywords added in multiP = values from multiprocessing
 			for key in processes_ret_values.keys():
@@ -228,7 +230,7 @@ def compute_helper(i,vel_width,spectra,t_f_names,matrix_out,return_value_dict):
 	#     spectra[t_f_names[i]]['bf_sig_array']=sig
 
 
-def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf_ind=False,sig_clip=False):
+def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf_ind=False,sig_clip=False,bf_version='bf_smooth'):
 	'''
 	A function to combine BFs from different spectral orders, weighted
 	by the standard deviation of the BF sideband.
@@ -282,6 +284,16 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 		Option to perform a sigma clip on the measured standard deviation.
 		The default value is False (if your weights make sense, you should not
 		need this step).
+
+	bf_version : str
+		Defines the version of the bf you want to combine. In most cases you want the 
+		version that has been smoothed by the instrumental resolution (or the smoothing
+		level you define), i.e., 'bf_smooth', which is the default. To combine the raw
+		BF, set to 'bf'.
+		You only want the raw version when you have a really high SNR spectrum and a 
+		good template match. The advantange here is that you could fit for the vsini
+		without the additional smoothing constraint that might allow you to measure
+		smaller vsinis. 
 
 	Returns
 	-------
@@ -339,7 +351,7 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 		#bf_f = interpolate.interp1d(spectra[t_f_names[good_orders][i]]['vel'],spectra[t_f_names[good_orders][i]]['bf_smooth'])
 		#bfs[i,:] = bf_f(v_resample)
 		if bf_ind == False:
-			bfs[i,:] = spectra[t_f_names[good_orders][i]]['bf_smooth']
+			bfs[i,:] = spectra[t_f_names[good_orders][i]][bf_version]
 		else:
 			bfs[i,:] = spectra[t_f_names[good_orders][i]]['bf_matrix'][bf_ind]
 
@@ -364,10 +376,26 @@ def weight_combine(t_f_names,spectra,std_perc=0.1,vel_gt_lt=None,bf_sig=False,bf
 
 	bf_wsc = np.sum(bfs[stdsc_mask]*weight[stdsc_mask][np.newaxis].T,axis=0) / np.sum(weight[stdsc_mask])
 
-	bf_wsc_sterr = 1.0 / np.sqrt(np.sum(weight[stdsc_mask]))
+	#bf_wsc_sterr = 1.0 / np.sqrt(np.sum(weight[stdsc_mask])) #- incorrect, assumed weights are variance based.
+	
+	weight_norm = weight[stdsc_mask] / np.sum(weight[stdsc_mask])
+	sigma = np.std(bfs[stdsc_mask],axis=0)
+	bf_wsc_sterr = sigma * np.sqrt(np.sum(weight_norm**2))
+
 	bf_wsc_ewstd = np.sqrt(np.sum(weight[stdsc_mask][np.newaxis].T*(bfs[stdsc_mask]-bf_wsc)**2,axis=0) /
 						   (np.sum(weight[stdsc_mask]*t_f_names[good_orders][stdsc_mask].size-1) /
 							t_f_names[good_orders][stdsc_mask].size))
+
+#	weight = 1.0 / xerr**2
+#    xmean=np.sum(x/xerr**2)/np.sum(weight)
+#
+#    if variance_based == True:
+#    	xmeanerr=1.0/np.sqrt(np.sum(weight))
+#
+#    if variance_based == False:
+#    	weight_norm = weight / np.sum(weight)
+#    	sigma = np.std(x)
+#    	xmeanerr = sigma * np.sqrt(np.sum(weight_norm**2))
 
 	return v,bf_wsc,bf_wsc_sterr,bf_wsc_ewstd
 
