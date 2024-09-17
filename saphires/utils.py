@@ -573,6 +573,8 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,pmra=
 	- keck - (Keck Hi-Res)
 	- smarts15 - (e.g. CHIRON)
 	- hpf - (e.g. HPF)
+	- keck - (e.g. HIRES)
+	- irtf - (e.g. iSHELL)
 
 	returns
 	brv,bjd,bvcorr
@@ -721,6 +723,12 @@ def brvc(dateobs,exptime,observat,ra,dec,rv=0.0,print_out=False,epoch=2000,pmra=
 			#from a header
 			#LCO 0.4m Haleakala node
 	
+		if observat[i] == 'irtf':
+			alt = 4168.1
+			lat = 19.826218
+			lon = -155.471999
+			#from a header
+
 		if isinstance(ra,str):
 			ra,dec = sex2dd(ra,dec)
 
@@ -2734,7 +2742,7 @@ def region_select_vars(w,f,tar_stretch=True,reverse=False,tell_file=None,jump_to
 	return
 
 
-def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,reverse=False,t_order=0,temp_order=0, header_wave=False,w_mult=1,igrins_default=False, tell_file=None,jump_to=0,reg_file=None):
+def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,reverse=False,t_order=0,temp_order=0,header_wave=False,w_order=1,temp_w_order=1,w_mult=1,igrins_default=False, tell_file=None,jump_to=0,reg_file=None):
 	'''
 	An interactive function to plot target and template spectra
 	that allowing you to select useful regions with which to 
@@ -2805,6 +2813,22 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 		The order of the template spectrum. Some multi-order spectra 
 		come in multi-extension fits files (e.g. IGRINS). This 
 		parameter defines that extension. The default is 0.
+
+	w_order : int
+		The order of the wavelength extension of the target spectrum. 
+		Some multi-order spectra come in multi-extension fits files 
+		(e.g. IGRINS). This parameter defines that extension. 
+		The default is 1. This is the extension for the old IGRINS 
+		data reduction format. In the updated version (v3), the extension
+		is 3. 
+
+	temp_w_order : int
+		The order of the wavelength extension of the template spectrum. 
+		Some multi-order spectra come in multi-extension fits files 
+		(e.g. IGRINS). This parameter defines that extension. 
+		The default is 1. This is the extension for the old IGRINS 
+		data reduction format. In the updated version (v3), the extension
+		is 3. 
 
 	header_wave : bool or 'Single'
 		Whether to assign the wavelength array from the header keywords or
@@ -2951,7 +2975,7 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 		if header_wave == False:
 			flux = hdulist[t_order].data[i_ind]
 			
-			w = hdulist[1].data[i_ind]*w_mult
+			w = hdulist[w_order].data[i_ind]*w_mult
 			dw=(np.max(w) - np.min(w))/float(w.size)
 
 		print(header_wave)
@@ -3044,7 +3068,7 @@ def region_select_ms(target,template=None,tar_stretch=True, temp_stretch=True,re
 		if header_wave == False:
 			t_flux = t_hdulist[temp_order].data[i_ind]
 			
-			t_w = t_hdulist[1].data[i_ind]*w_mult
+			t_w = t_hdulist[temp_w_order].data[i_ind]*w_mult
 			t_dw=(np.max(t_w) - np.min(t_w))/float(t_w.size)
 
 		if header_wave == True:

@@ -669,7 +669,7 @@ def read_fits(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 
 
 def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
-    trim_style='clip',header_wave=False,
+    trim_style='clip',header_wave=False,f_ext = 0,w_ext = 1,
     norm_w_width=200.0,norm_maxiter=15,norm_lower=0.3,norm_upper=2.0,norm_nord=3):
 	'''
 	A function to read in a target spectrum, list of target spectra, or a
@@ -872,9 +872,9 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			t_w=np.arange(t_flux.size)*t_dw+t_w0
 
 		if header_wave == False:
-			t_flux = t_hdulist[0].data[order[i]]
+			t_flux = t_hdulist[f_ext].data[order[i]]
 			
-			t_w = t_hdulist[1].data[order[i]]*w_mult
+			t_w = t_hdulist[w_ext].data[order[i]]*w_mult
 			t_dw=(np.max(t_w) - np.min(t_w))/float(t_w.size)
 
 		if header_wave == True:
