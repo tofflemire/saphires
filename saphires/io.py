@@ -889,14 +889,14 @@ def read_ms(spectra_list,temp=False,w_mult=1.0,combine_all=True,norm=True,
 			#The loop below puts all the header extensions into one string
 			w_sol_str=''
 			for j in range(w_sol_inds.size):
-			    if len(t_hdulist[0].header[w_sol_inds[j]]) == 68:
-			        w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]
-			    if len(t_hdulist[0].header[w_sol_inds[j]]) == 67:
-			        w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]+' '
-			    if len(t_hdulist[0].header[w_sol_inds[j]]) == 66:
-			        w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]+' ' 
-			    if len(t_hdulist[0].header[w_sol_inds[j]]) < 66:
-			        w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]
+				if len(t_hdulist[0].header[w_sol_inds[j]]) == 68:
+					w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]
+				if len(t_hdulist[0].header[w_sol_inds[j]]) == 67:
+					w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]+' '
+				if len(t_hdulist[0].header[w_sol_inds[j]]) == 66:
+					w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]+' ' 
+				if len(t_hdulist[0].header[w_sol_inds[j]]) < 66:
+					w_sol_str=w_sol_str+t_hdulist[0].header[w_sol_inds[j]]
 
 			# normalized the formatting
 			w_sol_str=w_sol_str.replace('    ',' ').replace('   ',' ').replace('  ',' ')
