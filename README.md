@@ -40,6 +40,6 @@ See the [documentation](https://saphires.readthedocs.io/en/latest/index.html) fo
 
 
 
-This code is actively being developed with the help of Danny Krolikowski, Natalie Gosnell, Emily Leiner, Victoria Catlett, and Miguel Gutierrez.
+This code is actively being developed with the help of Danny Krolikowski, Natalie Gosnell, Emily Leiner, Victoria Catlett, and Miguel Gutierrez. Submit a github ticket if you have questions!
 
 
